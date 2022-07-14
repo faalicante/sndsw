@@ -47,8 +47,8 @@ def slopes(Nev=-1):
      scifiDet = ROOT.Scifi()
      ut.bookHist(h,'slopesX','slope diffs',1000,-1.0,1.0)
      ut.bookHist(h,'slopesY','slope diffs',1000,-1.0,1.0)
-     ut.bookHist(h,'clX','cluster size',10,0.5,10.5)
-     ut.bookHist(h,'clY','cluster size',10,0.5,10.5)
+     ut.bookHist(h,'clX','cluster size',20,0.5,20.5)
+     ut.bookHist(h,'clY','cluster size',20,0.5,20.5)
 # assuming cosmics make straight line
      if Nev < 0: Nev = eventTree.GetEntries()
      for event in eventTree:
@@ -94,7 +94,6 @@ def slopes(Nev=-1):
      k=1
      for cl in ['clX', 'clY']:
           h['clusters'].cd(k)
-          h[cl].GetXaxis().SetRangeUser(-0.2,0.2)
           h[cl].SetTitle('size of ' + cl + ' projection')
           h[cl].Draw()
           h['clusters'].Update()
@@ -191,57 +190,119 @@ def beamSpot():
         rc = h['bs'].Fill(xMean/w,yMean/w)
 
 def clusterDist(Nev=-1):
-     ut.bookCanvas(h,'cls vs nu','clusters vs neutrino',1200,1600,2,3) #histo energy and z
+     ut.bookCanvas(h,'cls_z','clusters z',cx=2,cy=5)
+     h['cls_z'].SetCanvasSize(1200, 1500)
+     h['cls_z'].SetWindowSize(1250, 1200)
+     ut.bookCanvas(h, 'cls_size', 'hit per cluster', 1024, 720, 1, 1)
+     ut.bookHist(h, 'h_size', 'cluster hits', 20, 0.5, 20.5)
+     for wall in range(5):
+          ut.bookCanvas(h,'cls_map'+str(wall),'clusters x-y wall '+str(wall),cx=2,cy=5)
+          h['cls_map'+str(wall)].SetCanvasSize(1200, 2300)
+          h['cls_map'+str(wall)].SetWindowSize(1250, 1200)
+          ut.bookHist(h,'hit_z_wall_'+str(wall),'cls z wall '+str(wall)+'; z [cm]',25,250,400)
+          ut.bookHist(h,'cls_z_wall_'+str(wall),'hit z wall '+str(wall)+'; z [cm]',25,250,400)
+          for plane in range(1,6):
+               ut.bookHist(h,'hit_'+str(wall)+'_'+str(plane),'hit wall '+str(wall)+' plane '+str(plane)+'; x [cm]; y [cm]',50,-50,0,50,10,60)
+               ut.bookHist(h,'cls_'+str(wall)+'_'+str(plane),'cls wall '+str(wall)+' plane '+str(plane)+'; x [cm]; y [cm]',50,-50,0,50,10,60)
      nInt=0
-     P = ROOT.TLorentzVector()
+     nIntWall=0
+     nIntBorder=0
+     nIntScifi=0
+     A,B = ROOT.TVector3(),ROOT.TVector3()
      if Nev < 0: Nev = eventTree.GetEntries()
+     totcl=0
+     tothit=0
      for event in eventTree:
           if Nev<0: break
           Nev=Nev-1
-          mother = 0
+          N = eventTree.GetEntries()-Nev
+          motherWall = -1
           for mcTrack in event.MCTrack:
                if mcTrack.GetMotherId()==-1 and mcTrack.GetPdgCode()==14:
-                    #print(mcTrack.GetStartZ())
                     nInt+=1
-                    mother = 1
                     mX = mcTrack.GetStartX()
-                    my = mcTrack.GetStartY()
-                    mz = mcTrack.GetStartZ()
-                    pX = mcTrack.GetPx()
-                    py = mcTrack.GetPy()
-                    pz = mcTrack.GetPz()
-                    M = mcTrack.GetMass()
-                    P.SetXYZM(pX, pY, pZ, M)
-                    h['energy'].Fill(P.E())
-                    h['startZ'].Fill(mZ)
-                    if P.E() > 3200: print('energy out of histo:', P.E())      
-          if mother:
-               clusters = makeClusters(event)
-          for k in range(event.Digi_ScifiHits.GetEntries()):
-               digis = event.Digi_ScifiHits[k]
-               if not digis.isValid(): continue 
-               detID = digis.GetDetectorID()
-               if detID//1000000 == motherLayer+1:
-                    #print('study this layer', detID)
-                    pass
-               else: continue
-     print('number of mu_neutrino interactions:', nInt)
-     h['nu_e'].cd(1)
-     h['energy'].Draw()
-     h['nu_e'].cd(2)
-     h['startZ'].Draw()
+                    mY = mcTrack.GetStartY()
+                    mZ = mcTrack.GetStartZ()
+                    ROOT.gGeoManager.FindNode(mX, mY, mZ)
+                    node = ROOT.gGeoManager.GetPath()
+                    #print('interacting node', node)
+                    for wall in range(5):
+                         if 'Wall_'+str(wall) in node:
+                              nIntWall+=1
+                              motherWall = wall
+                              #print(eventTree.GetEntries()-Nev, motherWall)
+                         elif 'Wallborder_'+str(wall) in node:
+                              nIntBorder+=1
+                         elif 'ScifiVolume'+str(wall+1) in node:
+                              nIntScifi+=1
+               break
+          for wall in range(5):
+               if motherWall==wall:
+                    clusters = makeClusters(event)
+                    print(N, len(clusters))
+                    for aCl in clusters:
+                         totcl+=1
+                         aCl.GetPosition(A,B)
+                         #print(A[0], A[1], A[2], B[0], B[1], B[2])
+                         h['cls_z_wall_'+str(wall)].Fill(A[2])
+                         h['h_size'].Fill(aCl.GetN())
+                         clStation = int(aCl.GetFirst()/1000000)
+                         #print(N, clStation)
+                         for plane in range(1, 6):
+                              if plane == clStation:
+                                   h['cls_'+str(wall)+'_'+str(plane)].Fill(A[0], B[1])
+                                   #h['cls_'+str(wall)+'_'+str(plane)].Fill(B[0], B[1])
 
+                    hitCount=0
+                    prevID = -1
+                    for aHit in event.ScifiPoint:
+                         tothit+=1
+                         partID = aHit.GetTrackID()
+                         hitStation = aHit.station()
+                         if partID == -2: continue
+                         if partID!=prevID:
+                              hitZ = aHit.GetZ()
+                              h['hit_z_wall_'+str(wall)].Fill(hitZ)
+                              for plane in range(1, 6):
+                                   if plane == hitStation:
+                                        hitCount+=1
+                                        hitX = aHit.GetX()
+                                        hitY = aHit.GetY()
+                                        #hitEloss = aHit.GetEnergyLoss()
+                                        h['hit_'+str(wall)+'_'+str(plane)].Fill(hitX, hitY)
+                                        #h['2d_sig'].Fill(hitX, hitY, hitEloss)
+                                        prevID = partID
+     print('number of mu_neutrino interactions:', nInt)
+     print('number of mu_neutrino interactions in walls:', nIntWall)
+     print('total number of cluster/hit', totcl, tothit)
+     h['cls_size'].cd()
+     h['h_size'].Draw()
+     for wall in range(5):
+          h['cls_z'].cd(wall*2+1)
+          h['cls_z_wall_'+str(wall)].Draw('COLZ')
+          h['cls_z'].cd((wall+1)*2)
+          h['hit_z_wall_'+str(wall)].Draw('COLZ')
+          for plane in range(1, 6):
+               h['cls_map'+str(wall)].cd(plane*2-1)
+               h['cls_'+str(wall)+'_'+str(plane)].Draw('COLZ')
+               h['cls_map'+str(wall)].cd(plane*2)
+               h['hit_'+str(wall)+'_'+str(plane)].Draw('COLZ')
+     
 def singleNumu(start=0):
+     wall = 0
+     ut.bookCanvas(h,'z_dis','clusters z',cx=1,cy=1)
+     ut.bookCanvas(h,'cls_map'+str(wall),'clusters x-y wall '+str(wall),cx=2,cy=5)
+     ut.bookHist(h,'cls_z','z distribution; z [cm]',25,250,400)
+
      ut.bookCanvas(h,'2d_map','2d hit distribution',1024,768,1,2) 
      ut.bookHist(h,'2d_pos','hit map plane; x [cm]; y [cm]',50,-50,0,50,10,60)
      #ut.bookHist(h,'2d_sig','signal plane; x [cm]; y [cm]',50,-50,0,50,10,60)
-     ut.bookHist(h,'z_dis','z distribution; z [cm]',50,275,375)
-
      P = ROOT.TLorentzVector()
      for N in range(start, eventTree.GetEntries()):
           event = eventTree
           rc = event.GetEvent(N)
-          motherLayer = -1
+          motherWall = -1
+          cc = 0
           for mcTrack in event.MCTrack:
                if mcTrack.GetMotherId()==-1 and mcTrack.GetPdgCode()==14:
                     mX = mcTrack.GetStartX()
@@ -250,21 +311,14 @@ def singleNumu(start=0):
                     ROOT.gGeoManager.FindNode(mX, mY, mZ)
                     node = ROOT.gGeoManager.GetPath()
                     print(N, 'starting z:', mcTrack.GetStartZ())
-                    print(node)
-                    for layer in range(5):
-                         if ('Wall_'+str(layer) in node or 'Wallborder_'+str(layer) in node):
-                              motherLayer = layer
-                              #print(n, 'wall', motherLayer)
-                         elif ('ScifiVolume'+str(layer+1) in node):
-                              motherLayer = layer+1
-                              #print(n, 'scifi', motherLayer)
-                    px = mcTrack.GetPx()
-                    py = mcTrack.GetPy()
-                    pz = mcTrack.GetPz()
-                    m = mcTrack.GetMass()
-                    P.SetXYZM(px, py, pz, m)
-                    if P.E() > 3200: print('energy out of histo:', P.E())
-          if motherLayer == -1: continue
+                    #for wall in range(5):
+                    if 'Wall_'+str(wall) in node:
+                         motherWall = wall
+                         print('wall', motherWall)
+               elif mcTrack.GetMotherId()==0 and mcTrack.GetPdgCode()==13:
+                    cc = 1
+          if motherWall == -1: continue
+          if cc: pass
           hitCount=0
           prevID = -1
           h['2d_pos'].Reset('ICES')
@@ -277,7 +331,7 @@ def singleNumu(start=0):
                if partID!=prevID:
                     hitZ = aHit.GetZ()
                     h['z_dis'].Fill(hitZ)
-                    if hitStation == motherLayer+1:
+                    if hitStation == motherWall+1:
                          #print('study this layer', detID)
                          #print(partID)
                          hitX = aHit.GetX()
@@ -293,7 +347,7 @@ def singleNumu(start=0):
           #if hitCount>0:
           h['2d_map'].cd(1)
           h['2d_pos'].Draw('COLZ')
-          h['2d_pos'].SetTitle('hit map on plane '+str(motherLayer+1))
+          h['2d_pos'].SetTitle('hit map on plane '+str(motherWall+1))
           h['2d_map'].cd(2)
           #h['2d_sig'].Draw('COLZ')
           h['z_dis'].Draw()
@@ -330,8 +384,8 @@ def charts():
                               h['bar_chart'].Fill(i+10)
                               if mcTrack.GetPdgCode()==14:
                                    h['bar_chart_mu'].Fill(i+10)
-                    for i in range(nx):
-                         h['bar_chart'].GetXaxis().SetBinLabel(i+1, labels[i])
+     for i in range(nx):
+          h['bar_chart'].GetXaxis().SetBinLabel(i+1, labels[i])
      h['bar_chart'].SetFillColor(4)
      h['bar_chart'].SetBarWidth(0.4)
      h['bar_chart'].SetBarOffset(0.1)
@@ -351,17 +405,20 @@ def charts():
      legend.Draw()
 
 def makeClusters(event):
-     scifiDet = ROOT.Scifi()
-     clusters = []
+     scifiDet = ROOT.gROOT.GetListOfGlobals().FindObject('Scifi')
+     clusScifi = ROOT.TClonesArray("sndCluster")
+     #digiSciFi = ROOT.TClonesArray("sndScifiHit")
+     digiSciFi = event.Digi_ScifiHits
+     index = 0
      hitDict = {}
-     for k in range(event.Digi_ScifiHits.GetEntries()):
-          d = event.Digi_ScifiHits[k]
+     for k in range(digiSciFi.GetEntries()):
+          d = digiSciFi[k]
           if not d.isValid(): continue 
           hitDict[d.GetDetectorID()] = k
      hitList = list(hitDict.keys())
      if len(hitList)>0:
           hitList.sort()
-          tmp = [hitList[0]]
+          tmp = [ hitList[0] ]
           cprev = hitList[0]
           ncl = 0
           last = len(hitList)-1
@@ -369,20 +426,29 @@ def makeClusters(event):
           for i in range(len(hitList)):
                if i==0 and len(hitList)>1: continue
                c=hitList[i]
-               if (c-cprev)==1: 
+               neighbour = False
+               if (c-cprev)==1:    # does not account for neighbours across sipms
+                    neighbour = True
                     tmp.append(c)
-               if (c-cprev)!=1 or c==hitList[last]:
+               if not neighbour  or c==hitList[last]:
                     first = tmp[0]
                     N = len(tmp)
                     hitlist.clear()
-                    for aHit in tmp:
-                         hitlist.push_back( event.Digi_ScifiHits[hitDict[aHit]])
-                    if N > 1:
-                         aCluster = ROOT.sndCluster(first,N,hitlist,scifiDet)
-                         clusters.append(aCluster)
+                    for aHit in tmp: hitlist.push_back( digiSciFi[hitDict[aHit]])
+                    aCluster = ROOT.sndCluster(first,N,hitlist,scifiDet,False)
+                    nhit = aCluster.GetN()
+                    if  clusScifi.GetSize() == index: clusScifi.Expand(index+10)
+                    clusScifi[index]=aCluster
+                    index+=1
                     if c!=hitList[last]:
                          ncl+=1
-                         #not sure ncl+1 in this if
                          tmp = [c]
+                    elif not neighbour :   # save last channel
+                         hitlist.clear()
+                         hitlist.push_back( digiSciFi[hitDict[c]])
+                         aCluster = ROOT.sndCluster(c,1,hitlist,scifiDet,False)
+                         clusScifi[index]=aCluster
+                         index+=1
                cprev = c
-     return clusters
+          print('number of clusters', ncl)
+     return clusScifi
