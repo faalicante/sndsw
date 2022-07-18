@@ -421,8 +421,8 @@ def singleEvent(start=0,save=False):
           h['cls_dis'+str(wall)].Update()
           #stats = h['cls_x_'+str(wall)+'_'+str(wall+1)].FindObject('stats')
           #stats.SetOptFit(111)
-          print('nu vertex ({:.6f}, {:.6f}) / cls ({:.6f}, {:.6f})'.format(mX, mY, fitMeanX, fitMeanY))
-          print('residual = ({:.6f}, {:.6f})'.format(fitMeanX-mX, fitMeanY-mY))
+          print('nu vertex ({:.6f}, {:.6f}) / cls baricenter ({:.6f}, {:.6f})'.format(mX, mY, fitMeanX, fitMeanY))
+          print('cls - nu position = ({:.6f}, {:.6f})'.format(fitMeanX-mX, fitMeanY-mY))
           if save:
                h['z_dis'].Print('event_'+str(N)+'_z.png')
                h['2d_map'+str(wall)].Print('event_'+str(N)+'_2d_'+str(wall)+'.png')
