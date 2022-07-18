@@ -163,7 +163,6 @@ def loopEvents(start=0,save=False,goodEvents=False,withTrack=-1,nTracks=0,minSip
        runId = eventTree.EventHeader.GetRunId()
        if Tprev >0: dT = T-Tprev
        Tprev = T
-    #print( "event -> %i   %8.4Fs  %8.4Fns"%(N,T/freq,dT/freq*1E9))
     if ntracks > 0: print('number of tracks: ', ntracks)
 
     digis = []
@@ -192,8 +191,6 @@ def loopEvents(start=0,save=False,goodEvents=False,withTrack=-1,nTracks=0,minSip
     dTs+= "    " + str(minT[1].GetDetectorID())
     for p in proj:
        rc = h[ 'simpleDisplay'].cd(p)
-       #if p==1: h[proj[p]].SetTitle('event '+str(N)+"    dT="+dTs)
-       #if p==1: h[proj[p]].SetTitle('event '+str(N)+'    run_'+str(runId))
        h[proj[p]].Draw('b')
     emptyNodes()
     drawDetectors()
@@ -206,14 +203,12 @@ def loopEvents(start=0,save=False,goodEvents=False,withTrack=-1,nTracks=0,minSip
             geo.modules['MuFilter'].GetPosition(detID,A,B)
             sipmMult = len(digi.GetAllSignals())
             if sipmMult<minSipmMult and (system==1 or system==2): continue
-            #sumSignal = digi.SumOfSignals()['Sum']
             if trans2local:
                 curPath = nav.GetPath()
                 tmp = curPath.rfind('/')
                 nav.cd(curPath[:tmp])
          else:
             geo.modules['Scifi'].GetSiPMPosition(detID,A,B)
-            #energy = digi.GetEnergy()
             if trans2local:
                 curPath = nav.GetPath()
                 tmp = curPath.rfind('/')
@@ -234,9 +229,7 @@ def loopEvents(start=0,save=False,goodEvents=False,withTrack=-1,nTracks=0,minSip
          rc = c[1].SetPoint(c[0],Z, Y)
          rc = c[1].SetPointError(c[0],detSize[system][2],sY)
          c[0]+=1 
-
          fillNode(curPath)
-
          if digi.isVertical():  F = 'firedChannelsX'
          else:                     F = 'firedChannelsY'
          ns = max(1,digi.GetnSides())
@@ -268,9 +261,7 @@ def loopEvents(start=0,save=False,goodEvents=False,withTrack=-1,nTracks=0,minSip
             rc=h[collection][c][1].Draw('sameP')
             h['display:'+c]=h[collection][c][1]
     h[ 'simpleDisplay'].Update()
-
-    #withTrack=2 scifi, =3 DS
-    if withTrack == 2: addTrack(OT,True)
+    if withTrack == 2: addTrack(OT,True) #withTrack=2 scifi, =3 DS
     elif not withTrack<0:  addTrack(OT)
     if verbose>0: dumpChannels()
     if save: h['simpleDisplay'].Print('{:0>2d}-event_{:04d}'.format(runId,N)+'.png')
