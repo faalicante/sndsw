@@ -22,7 +22,7 @@ parser.add_argument("--hits_for_triplet", dest = "hits_for_triplet", type=str, h
 
 options = parser.parse_args()
 
-trans2local = True
+trans2local = False
 
 import SndlhcGeo
 geo = SndlhcGeo.GeoInterface(options.geoFile)
@@ -201,16 +201,14 @@ def loopEvents(start=0,save=False,goodEvents=False,withTrack=-1,nTracks=0,minSip
             geo.modules['MuFilter'].GetPosition(detID,A,B)
             sipmMult = len(digi.GetAllSignals())
             if sipmMult<minSipmMult and (system==1 or system==2): continue
-            if trans2local:
-                curPath = nav.GetPath()
-                tmp = curPath.rfind('/')
-                nav.cd(curPath[:tmp])
+            curPath = nav.GetPath()
+            tmp = curPath.rfind('/')
+            nav.cd(curPath[:tmp])
          else:
             geo.modules['Scifi'].GetSiPMPosition(detID,A,B)
-            if trans2local:
-                curPath = nav.GetPath()
-                tmp = curPath.rfind('/')
-                nav.cd(curPath[:tmp])
+            curPath = nav.GetPath()
+            tmp = curPath.rfind('/')
+            nav.cd(curPath[:tmp])
             system = 0
          globA,locA = array('d',[A[0],A[1],A[2]]),array('d',[A[0],A[1],A[2]])
          if trans2local:   nav.MasterToLocal(globA,locA)
