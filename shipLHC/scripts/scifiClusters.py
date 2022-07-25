@@ -324,8 +324,8 @@ def singleEvent(start=0,wall = 0,save=False):
           ut.bookHist(h,'cls_'+str(wall)+'_'+str(plane),'2d cls wall '+str(wall)+' plane '+str(plane)+'; x [cm]; y [cm]',nBins,-50,0,nBins,10,60)
           ut.bookHist(h,'cls_x_'+str(wall)+'_'+str(plane),'clusters x '+str(wall)+' plane '+str(plane)+'; x [cm]',nBins,-50,0)
           ut.bookHist(h,'cls_y_'+str(wall)+'_'+str(plane),'clusters y '+str(wall)+' plane '+str(plane)+'; y [cm]',nBins,10,60)
-          ut.bookHist(h,'digi_x_'+str(wall)+'_'+str(plane),'2d digi wall '+str(wall)+' plane '+str(plane)+'; x [cm]',nBins,-50,0)
-          ut.bookHist(h,'digi_y_'+str(wall)+'_'+str(plane),'2d digi wall '+str(wall)+' plane '+str(plane)+'; y [cm]',nBins,10,60)
+          ut.bookHist(h,'digi_x_'+str(wall)+'_'+str(plane),'digi wall '+str(wall)+' plane '+str(plane)+'; x [cm]',nBins,-50,0)
+          ut.bookHist(h,'digi_y_'+str(wall)+'_'+str(plane),'digi wall '+str(wall)+' plane '+str(plane)+'; y [cm]',nBins,10,60)
      sizeBin = 50/nBins
      #P = ROOT.TLorentzVector()
      A,B = ROOT.TVector3(),ROOT.TVector3()
@@ -336,7 +336,6 @@ def singleEvent(start=0,wall = 0,save=False):
           rc = event.GetEvent(N)
           motherWall = -1
           cc = 0
-          nHit=0
           for mcTrack in event.MCTrack:
                if mcTrack.GetMotherId()==-1 and mcTrack.GetPdgCode()==14:
                     mX = mcTrack.GetStartX()
@@ -451,8 +450,6 @@ def singleEvent(start=0,wall = 0,save=False):
                     if plane == wall+1:
                          maxBinX = h['digi_x_'+str(wall)+'_'+str(plane)].GetMaximumBin()
                          maxBinY = h['digi_y_'+str(wall)+'_'+str(plane)].GetMaximumBin()
-                         print(maxBinX, maxBinY)
-
                          maxValueX = h['digi_x_'+str(wall)+'_'+str(plane)].GetBinContent(maxBinX)
                          maxValueY = h['digi_y_'+str(wall)+'_'+str(plane)].GetBinContent(maxBinY)
                          maxBinX = maxBinX*sizeBin-50-1
@@ -486,10 +483,56 @@ def singleEvent(start=0,wall = 0,save=False):
                               print('y fit not converged')
                               h['digi_y_'+str(wall)+'_'+str(plane)].GetQuantiles(1, medianY, quantile)
                               print(medianY[0])
+                         digiDist = ROOT.TMath.Sqrt((fitMeanX-nuX)**2+(fitMeanY-nuY)**2)
+                         digiEntries = h['digi_x_'+str(wall)+'_'+str(plane)].GetEntries()+h['digi_y_'+str(wall)+'_'+str(plane)].GetEntries()
+                         print('nu vertex ({:.6f}, {:.6f})'.format(nuX, nuY))
+                         print('hit - nu position = ({:.6f}, {:.6f})'.format(fitMeanX-nuX, fitMeanY-nuY))
                     h['digi_x_'+str(wall)+'_'+str(plane)].Draw()
                     h['digi_dis'+str(wall)].cd(plane*2)
                     h['digi_y_'+str(wall)+'_'+str(plane)].Draw()
                     h['cls_dis'+str(wall)].cd(plane*2-1)
+                    if plane == wall+1:
+                         maxBinX = h['cls_x_'+str(wall)+'_'+str(plane)].GetMaximumBin()
+                         maxBinY = h['cls_y_'+str(wall)+'_'+str(plane)].GetMaximumBin()
+                         print(maxBinX, maxBinY)
+                         maxValueX = h['cls_x_'+str(wall)+'_'+str(plane)].GetBinContent(maxBinX)
+                         maxValueY = h['cls_y_'+str(wall)+'_'+str(plane)].GetBinContent(maxBinY)
+                         maxBinX = maxBinX*sizeBin-50-1
+                         maxBinY = maxBinY*sizeBin+10-1
+                         print(maxBinX, maxBinY)
+                         #for bin in range(1, nBins+1):
+                         #     #print('x', bin, h['cls_x_'+str(wall)+'_'+str(plane)].GetBinContent(bin))
+                         #     if 0 < h['cls_x_'+str(wall)+'_'+str(plane)].GetBinContent(bin) < maxValueX/3:
+                         #          h['cls_x_'+str(wall)+'_'+str(plane)].SetBinContent(bin, 0)
+                         #     #print('y', bin, h['cls_y_'+str(wall)+'_'+str(plane)].GetBinContent(bin))
+                         #     if 0 < h['cls_y_'+str(wall)+'_'+str(plane)].GetBinContent(bin) < maxValueY/3:
+                         #          h['cls_y_'+str(wall)+'_'+str(plane)].SetBinContent(bin, 0)
+                         print('fitx')
+                         fitX = h['cls_x_'+str(wall)+'_'+str(plane)].Fit('gaus','S','',maxBinX-3*sizeBin,maxBinX+3*sizeBin)
+                         fitStatusX = int(fitX)
+                         print('fity')
+                         fitY = h['cls_y_'+str(wall)+'_'+str(plane)].Fit('gaus','S','',maxBinY-3*sizeBin,maxBinY+3*sizeBin)
+                         fitStatusY = int(fitY)
+                         fitMeanX = fitX.Parameter(1)
+                         fitVarX = fitX.Parameter(2)
+                         fitMeanY = fitY.Parameter(1)
+                         fitVarY = fitY.Parameter(2)
+                         quantile = array('d',[0.5])
+                         if fitStatusX!=0 or fitX.Parameter(0)>2*h['cls_x_'+str(wall)+'_'+str(plane)].GetEntries():
+                              medianX = array('d',[0])
+                              print('x fit not converged')
+                              h['cls_x_'+str(wall)+'_'+str(plane)].GetQuantiles(1, medianX, quantile)
+                              fitMeanX = medianX[0]
+                              print(medianX[0])
+                         if fitStatusY!=0 or fitY.Parameter(0)>2*h['cls_y_'+str(wall)+'_'+str(plane)].GetEntries():
+                              medianY = array('d',[0])
+                              print('y fit not converged')
+                              h['cls_y_'+str(wall)+'_'+str(plane)].GetQuantiles(1, medianY, quantile)
+                              fitMeanY = medianY[0]
+                              print(medianY[0])
+                         clsDist = ROOT.TMath.Sqrt((fitMeanX-nuX)**2+(fitMeanY-nuY)**2)
+                         clsEntries = h['cls_x_'+str(wall)+'_'+str(plane)].GetEntries()+h['cls_y_'+str(wall)+'_'+str(plane)].GetEntries()
+                         print('cls - nu position = ({:.6f}, {:.6f})'.format(fitMeanX-nuX, fitMeanY-nuY))
                     h['cls_x_'+str(wall)+'_'+str(plane)].Draw()
                     h['cls_dis'+str(wall)].cd(plane*2)
                     h['cls_y_'+str(wall)+'_'+str(plane)].Draw()
@@ -523,13 +566,11 @@ def singleEvent(start=0,wall = 0,save=False):
                     #h['digi_'+str(wall)+'_'+str(plane)].Draw('COLZ')
                #h['2d_map'+str(wall)].Update()
                h['cls_dis'+str(wall)].Update()
-               h['digi_dis'+str(wall)].Update()
-
+               h['digi_dis'+str(wall)].Update() 
+               print(clsDist, digiDist, clsEntries, digiEntries)
                #stats = h['cls_x_'+str(wall)+'_'+str(wall+1)].FindObject('stats')
                #stats.SetOptFit(111)
                #print('nu vertex ({:.6f}, {:.6f}) / cls baricenter ({:.6f}, {:.6f}) / cls 2d ({:.6f}, {:.6f})'.format(mX, mY, fitMeanX, fitMeanY, fitMeanX2, fitMeanY2))
-               print('nu vertex ({:.6f}, {:.6f})'.format(nuX, nuY))
-               print('cls - nu position = ({:.6f}, {:.6f})'.format(fitMeanX-mX, fitMeanY-mY))
                #print('cls 2d - nu position = ({:.6f}, {:.6f})'.format(fitMeanX2-mX, fitMeanY2-mY))
                if save:
                     h['z_dis'].Print('event_'+str(N)+'_z.png')
@@ -543,9 +584,9 @@ def allEvents(Nev = -1):
      srY = []
      srD = []
      nBins = [25, 50, 100]
-     nBin = 25
+     nBin = 100
      sizeBin = 50/nBin
-     fitRange = [3]
+     fitRange = [3, 5, 10]
      #if nBin==100: fitRange = [5, 10]
      ut.bookCanvas(h,'cls_dis','clusters distribution',cx=2,cy=5)
      h['cls_dis'].SetCanvasSize(1200, 2300)
@@ -554,16 +595,19 @@ def allEvents(Nev = -1):
           ut.bookHist(h,'cls_x_'+str(plane),'clusters x plane '+str(plane)+'; x [cm]',nBin,-50,0)
           ut.bookHist(h,'cls_y_'+str(plane),'clusters y plane '+str(plane)+'; y [cm]',nBin,10,60)
      ut.bookCanvas(h,'res3','residuals3',1800, 1000, cx=3,cy=2)
-     #ut.bookCanvas(h,'res5','residuals5',1200, 1000, cx=2,cy=2)
-     #ut.bookCanvas(h,'res10','residuals10',1200, 1000, cx=2,cy=2)
-     ut.bookHist(h,'res_x','x residuals; x [cm]',50,0,10)
-     ut.bookHist(h,'res_vx','x variance; x [cm]',50,0,10)
-     ut.bookHist(h,'res_y','y residuals; y [cm]',50,0,10)
-     ut.bookHist(h,'res_vy','y variance; y [cm]',50,0,10)
-     ut.bookHist(h,'res_d','distance residuals; [cm]',50,0,50)
-     ut.bookCanvas(h,'res_v_nu','residuals dependences',1200, 1200, cx=1,cy=2)
+     ut.bookCanvas(h,'res5','residuals5',1800, 1000, cx=3,cy=2)
+     ut.bookCanvas(h,'res10','residuals10',1800, 1000, cx=3,cy=2)
+     ut.bookHist(h,'res_x','x residuals; x [cm]',50,0,50)
+     ut.bookHist(h,'res_vx','x variance; x [cm]',50,0,50)
+     ut.bookHist(h,'res_y','y residuals; y [cm]',50,0,50)
+     ut.bookHist(h,'res_vy','y variance; y [cm]',50,0,50)
+     ut.bookHist(h,'res_d','distance residuals; d[cm]',50,0,50)
+     ut.bookCanvas(h,'res_v_nu3','residuals dependences3',1200, 1200, cx=1,cy=2)
+     ut.bookCanvas(h,'res_v_nu5','residuals dependences5',1200, 1200, cx=1,cy=2)
+     ut.bookCanvas(h,'res_v_nu10','residuals dependences10',1200, 1200, cx=1,cy=2)
      h['res_v_en'] = ROOT.TGraphErrors()
      h['res_v_dp'] = ROOT.TGraphErrors()
+
      A,B = ROOT.TVector3(),ROOT.TVector3()
      V = ROOT.TLorentzVector()
      for binRange in fitRange:
@@ -628,11 +672,6 @@ def allEvents(Nev = -1):
                               if plane == clStation:
                                    if vertical: h['cls_x_'+str(plane)].Fill(A[0])
                                    else: h['cls_y_'+str(plane)].Fill(B[1])
-                    #for aHit in event.Digi_ScifiHits:
-                    #     if not aHit.isValid(): continue
-                    #     self.M.Scifi.GetSiPMPosition(aHit.GetDetectorID(),A,B)
-                    #     if aHit.isVertical(): h['digi_x'+str(plane)].Fill(A[0])
-                    #     else: h['digi_y'+str(plane)].Fill(B[1])
                     #print('')
                     #print('event -> ', N)
                     for plane in range(1, 6):
@@ -642,8 +681,8 @@ def allEvents(Nev = -1):
                               maxBinY = h['cls_y_'+str(plane)].GetMaximumBin()
                               maxValueX = h['cls_x_'+str(plane)].GetBinContent(maxBinX)
                               maxValueY = h['cls_y_'+str(plane)].GetBinContent(maxBinY)
-                              maxBinX = maxBinX*sizeBin-50
-                              maxBinY = maxBinY*sizeBin+10
+                              maxBinX = maxBinX*sizeBin-50-1
+                              maxBinY = maxBinY*sizeBin+10-1
                               #print('1d', maxBinX, maxBinY)
                               for bin in range(1, nBin+1):
                                    if h['cls_x_'+str(plane)].GetBinContent(bin) < maxValueX/3:
@@ -690,7 +729,7 @@ def allEvents(Nev = -1):
                     #print(N, cccount, nuE, mZ, distance)
                     h['res_v_en'].SetPoint(cccount, nuE, distance)
                     h['res_v_dp'].SetPoint(cccount, mZ, distance)
-                    print(N, motherWall, fitMeanX-nuX, fitMeanY-nuY, distance)
+                    print(binRange, N, motherWall, fitMeanX-nuX, fitMeanY-nuY, distance)
                     cccount+=1
           h['res'+str(binRange)].cd(1)
           h['res_x'].DrawNormalized()
@@ -703,14 +742,14 @@ def allEvents(Nev = -1):
           h['res'+str(binRange)].cd(5)
           h['res_vy'].DrawNormalized()
           #h['res'+str(binRange)].Update()
-          h['res_v_nu'].cd(1)
+          h['res_v_nu'+str(binRange)].cd(1)
           h['res_v_en'].SetTitle("neutrino energy")
           h['res_v_en'].GetXaxis().SetTitle("energy [MeV]")
           h['res_v_en'].GetYaxis().SetTitle("residual [cm]")
           h['res_v_en'].SetMarkerStyle(20)
           h['res_v_en'].SetMarkerSize(0.5)
           h['res_v_en'].Draw('AP')
-          h['res_v_nu'].cd(2)
+          h['res_v_nu'+str(binRange)].cd(2)
           h['res_v_dp'].SetTitle("neutrino interaction depth")
           h['res_v_dp'].GetXaxis().SetTitle("z [cm]")
           h['res_v_dp'].GetYaxis().SetTitle("residual [cm]")
@@ -718,7 +757,9 @@ def allEvents(Nev = -1):
           h['res_v_dp'].SetMarkerSize(0.5)
           h['res_v_dp'].Draw('AP')
           #h['res_v_nu'].Update()
-          #h['res'+str(binRange)].Print('/home/fabio/Immagini/220721/residuals_'+str(nBin)+'_'+str(binRange)+'_ext_thr.png')
+          #h['res'+str(binRange)].Print('/home/fabio/Immagini/220725/residuals_'+str(nBin)+'_'+str(binRange)+'.png')
+          #h['res_v_nu'+str(binRange)].Print('/home/fabio/Immagini/220725/nu_'+str(nBin)+'_'+str(binRange)+'.png')
+
           srX.append(resX)
           srY.append(resY)
           srD.append(resD)
@@ -735,12 +776,12 @@ def allDigit(Nev = -1):
      sizeBin = 50/nBin
      fitRange = [3]
      #if nBin==100: fitRange = [5, 10]
-     ut.bookCanvas(h,'digi_dis','clusters distribution',cx=2,cy=5)
+     ut.bookCanvas(h,'digi_dis','digi_htis distribution',cx=2,cy=5)
      h['digi_dis'].SetCanvasSize(1200, 2300)
      h['digi_dis'].SetWindowSize(1250, 1200)
      for plane in range(1,6):
-          ut.bookHist(h,'digi_x_'+str(plane),'clusters x plane '+str(plane)+'; x [cm]',nBin,-50,0)
-          ut.bookHist(h,'digi_y_'+str(plane),'clusters y plane '+str(plane)+'; y [cm]',nBin,10,60)
+          ut.bookHist(h,'digi_x_'+str(plane),'digi_hits x plane '+str(plane)+'; x [cm]',nBin,-50,0)
+          ut.bookHist(h,'digi_y_'+str(plane),'digi_hits y plane '+str(plane)+'; y [cm]',nBin,10,60)
      ut.bookCanvas(h,'res3','residuals3',1800, 1000, cx=3,cy=2)
      #ut.bookCanvas(h,'res5','residuals5',1200, 1000, cx=2,cy=2)
      #ut.bookCanvas(h,'res10','residuals10',1200, 1000, cx=2,cy=2)
@@ -795,7 +836,6 @@ def allDigit(Nev = -1):
                                    nuE = V.E()
                                    nuX = (pX/pZ)*(nuZ-mZ)+mX
                                    nuY = (pY/pZ)*(nuZ-mZ)+mY
-                                   #print(nuX-mX, nuY-mY)
                     elif mcTrack.GetMotherId()==0 and mcTrack.GetPdgCode()==13:
                          cc = 1
                          break
@@ -829,8 +869,8 @@ def allDigit(Nev = -1):
                               maxBinY = h['digi_y_'+str(plane)].GetMaximumBin()
                               maxValueX = h['digi_x_'+str(plane)].GetBinContent(maxBinX)
                               maxValueY = h['digi_y_'+str(plane)].GetBinContent(maxBinY)
-                              maxBinX = maxBinX*sizeBin-50
-                              maxBinY = maxBinY*sizeBin+10
+                              maxBinX = maxBinX*sizeBin-50-1
+                              maxBinY = maxBinY*sizeBin+10-1
                               #print('1d', maxBinX, maxBinY)
                               #for bin in range(1, nBin+1):
                               #     if h['digi_x_'+str(plane)].GetBinContent(bin) < maxValueX/3:
@@ -912,6 +952,257 @@ def allDigit(Nev = -1):
      print('srX', srX)
      print('srY', srY)
      print('srD', srD)
+
+def allall(digi=True, cluster=True,Nev = -1):
+     nBin = 25
+     sizeBin = 50/nBin
+     fitRange = [3]
+     clsHits = []
+     ut.bookCanvas(h,'cls_dis','clusters distribution',cx=2,cy=5)
+     h['cls_dis'].SetCanvasSize(1200, 2300)
+     h['cls_dis'].SetWindowSize(1250, 1200)
+     for plane in range(1,6):
+          ut.bookHist(h,'cls_x_'+str(plane),'clusters x plane '+str(plane)+'; x [cm]',nBin,-50,0)
+          ut.bookHist(h,'cls_y_'+str(plane),'clusters y plane '+str(plane)+'; y [cm]',nBin,10,60)
+     ut.bookCanvas(h,'digi_dis','digi_hits distribution',cx=2,cy=5)
+     h['digi_dis'].SetCanvasSize(1200, 2300)
+     h['digi_dis'].SetWindowSize(1250, 1200)
+     for plane in range(1,6):
+          ut.bookHist(h,'digi_x_'+str(plane),'digi_hits x plane '+str(plane)+'; x [cm]',nBin,-50,0)
+          ut.bookHist(h,'digi_y_'+str(plane),'digi_hits y plane '+str(plane)+'; y [cm]',nBin,10,60)
+     ut.bookCanvas(h,'cls_v_digi','better fit',1200, 1200, cx=2,cy=2)
+     ut.bookHist(h,'digi_fitg','digi_hits good fit; #hits',100,0,900)
+     ut.bookHist(h,'cls_fitg','cls good fit;#clusters',60,0,120)
+     ut.bookHist(h,'digi_fitb','digi_hits bad fit;#hits',100,0,900)
+     ut.bookHist(h,'cls_fitb','cls bad fit;#clusters',60,0,120)
+     ut.bookHist(h,'clh_fitg','hits in cls bad fit;#hits',20,0,20)
+     ut.bookHist(h,'clh_fitb','hits in cls bad fit;#hits',20,0,20)
+     A,B = ROOT.TVector3(),ROOT.TVector3()
+     V = ROOT.TLorentzVector()
+     for binRange in fitRange:
+          clse = []
+          digie = []
+          cccount=0
+          fitcls=0
+          fitdigis=0
+          if Nev < 1: Nev = eventTree.GetEntries()
+          for event in eventTree:
+               if Nev<1: break
+               N = eventTree.GetEntries()-Nev
+               Nev=Nev-1
+               motherWall = -1
+               cc = 0
+               for mcTrack in event.MCTrack:
+                    if mcTrack.GetMotherId()==-1 and mcTrack.GetPdgCode()==14:
+                         mX = mcTrack.GetStartX()
+                         mY = mcTrack.GetStartY()
+                         mZ = mcTrack.GetStartZ()
+                         ROOT.gGeoManager.FindNode(mX, mY, mZ)
+                         node = ROOT.gGeoManager.GetPath()
+                         for wall in range(5):
+                              if 'Wall_'+str(wall) in node:
+                                   motherWall = wall
+                                   scifiplane = '/cave_1/Detector_0/volTarget_1/ScifiVolume{}_{}000000'.format(wall+1, wall+1)
+                                   nav.cd(scifiplane)
+                                   currNav = nav.GetCurrentNode()
+                                   S = currNav.GetVolume().GetShape()
+                                   ox,oy,oz = S.GetOrigin()[0],S.GetOrigin()[1],S.GetOrigin()[2]
+                                   P = array('d',[ox,oy,oz])
+                                   M = array('d',[0,0,0])
+                                   nav.LocalToMaster(P,M)
+                                   nuZ = M[2]
+                                   pX = mcTrack.GetPx()
+                                   pY = mcTrack.GetPy()
+                                   pZ = mcTrack.GetPz()
+                                   nuM = mcTrack.GetMass()
+                                   V.SetXYZM(pX, pY, pZ, nuM)
+                                   nuE = V.E()
+                                   nuX = (pX/pZ)*(nuZ-mZ)+mX
+                                   nuY = (pY/pZ)*(nuZ-mZ)+mY
+                    elif mcTrack.GetMotherId()==0 and mcTrack.GetPdgCode()==13:
+                         cc = 1
+                         break
+               if motherWall == -1: continue
+               if cc:
+                    #print('N wall nbin fitrange', N, motherWall, nBin, binRange)
+                    #print('wall', motherWall, N)
+                    for plane in range(1, 6):
+                         h['cls_x_'+str(plane)].Reset()
+                         h['cls_y_'+str(plane)].Reset()
+                         h['digi_x_'+str(plane)].Reset()
+                         h['digi_y_'+str(plane)].Reset()
+                    if cluster:
+                         clusters = makeClusters(event)
+                         #print(N, len(clusters))
+                         for aCl in clusters:
+                              aCl.GetPosition(A,B)
+                              vertical = int(aCl.GetFirst()/100000)%10==1
+                              clStation = int(aCl.GetFirst()/1000000)
+                              clsHits.append(aCl.GetN())
+                              for plane in range(1, 6):
+                                   if plane == clStation:
+                                        if vertical: h['cls_x_'+str(plane)].Fill(A[0])
+                                        else: h['cls_y_'+str(plane)].Fill(B[1])
+                    if digi:
+                         for aHit in event.Digi_ScifiHits:
+                              if not aHit.isValid(): continue
+                              scifiDet.GetSiPMPosition(aHit.GetDetectorID(),A,B)
+                              digiStation = int(aHit.GetDetectorID()/1000000)
+                              for plane in range(1, 6):
+                                   if plane == digiStation:
+                                        if aHit.isVertical(): h['digi_x_'+str(plane)].Fill(A[0])
+                                        else: h['digi_y_'+str(plane)].Fill(B[1])
+                    #print('event -> ', N)
+                    for plane in range(1, 6):
+                         h['cls_dis'].cd(plane*2-1)
+                         if plane == motherWall+1:
+                              maxBinX = h['cls_x_'+str(plane)].GetMaximumBin()
+                              maxBinY = h['cls_y_'+str(plane)].GetMaximumBin()
+                              maxValueX = h['cls_x_'+str(plane)].GetBinContent(maxBinX)
+                              maxValueY = h['cls_y_'+str(plane)].GetBinContent(maxBinY)
+                              maxBinX = maxBinX*sizeBin-50-1
+                              maxBinY = maxBinY*sizeBin+10-1
+                              fitX = h['cls_x_'+str(plane)].Fit('gaus','SQ','',maxBinX-binRange*sizeBin,maxBinX+binRange*sizeBin)
+                              fitStatusX = int(fitX)
+                              fitY = h['cls_y_'+str(plane)].Fit('gaus','SQ','',maxBinY-binRange*sizeBin,maxBinY+binRange*sizeBin)
+                              fitStatusY = int(fitY)
+                              fitMeanX = fitX.Parameter(1)
+                              fitVarX = fitX.Parameter(2)
+                              fitMeanY = fitY.Parameter(1)
+                              fitVarY = fitY.Parameter(2)
+                              quantile = array('d',[0.5])
+                              if fitStatusX!=0 or fitX.Parameter(0)>2*h['cls_x_'+str(plane)].GetEntries():
+                                   medianX = array('d',[0])
+                                   #print('x fit not converged')
+                                   h['cls_x_'+str(plane)].GetQuantiles(1, medianX, quantile)
+                                   fitMeanX = medianX[0]
+                              if fitStatusY!=0 or fitY.Parameter(0)>2*h['cls_y_'+str(plane)].GetEntries():
+                                   medianY = array('d',[0])
+                                   #print('y fit not converged')
+                                   h['cls_y_'+str(plane)].GetQuantiles(1, medianY, quantile)
+                                   fitMeanY = medianY[0]
+                              clsDist = ROOT.TMath.Sqrt((fitMeanX-nuX)**2+(fitMeanY-nuY)**2)
+                              clsEntries = h['cls_x_'+str(plane)].GetEntries()+h['cls_y_'+str(plane)].GetEntries()
+                              clse.append(clsEntries)
+                              print('nu vertex ({:.6f}, {:.6f})'.format(nuX, nuY))
+                              print('cls - nu position = ({:.6f}, {:.6f})'.format(fitMeanX-nuX, fitMeanY-nuY))
+                         h['cls_x_'+str(plane)].Draw()
+                         h['cls_dis'].cd(plane*2)
+                         h['cls_y_'+str(plane)].Draw()
+                         h['digi_dis'].cd(plane*2-1)
+                         if plane == motherWall+1:
+                              maxBinX = h['digi_x_'+str(plane)].GetMaximumBin()
+                              maxBinY = h['digi_y_'+str(plane)].GetMaximumBin()
+                              maxValueX = h['digi_x_'+str(plane)].GetBinContent(maxBinX)
+                              maxValueY = h['digi_y_'+str(plane)].GetBinContent(maxBinY)
+                              maxBinX = maxBinX*sizeBin-50-1
+                              maxBinY = maxBinY*sizeBin+10-1
+                              fitX = h['digi_x_'+str(plane)].Fit('gaus','SQ','',maxBinX-3*sizeBin,maxBinX+3*sizeBin)
+                              fitStatusX = int(fitX)
+                              fitY = h['digi_y_'+str(plane)].Fit('gaus','SQ','',maxBinY-3*sizeBin,maxBinY+3*sizeBin)
+                              fitStatusY = int(fitY)
+                              fitMeanX = fitX.Parameter(1)
+                              fitVarX = fitX.Parameter(2)
+                              fitMeanY = fitY.Parameter(1)
+                              fitVarY = fitY.Parameter(2)
+                              quantile = array('d',[0.5])
+                              if fitStatusX!=0 or fitX.Parameter(0)>2*h['digi_x_'+str(plane)].GetEntries():
+                                   medianX = array('d',[0])
+                                   h['digi_x_'+str(plane)].GetQuantiles(1, medianX, quantile)
+                              if fitStatusY!=0 or fitY.Parameter(0)>2*h['digi_y_'+str(plane)].GetEntries():
+                                   medianY = array('d',[0])
+                                   h['digi_y_'+str(plane)].GetQuantiles(1, medianY, quantile)
+                              digiDist = ROOT.TMath.Sqrt((fitMeanX-nuX)**2+(fitMeanY-nuY)**2)
+                              digiEntries = h['digi_x_'+str(plane)].GetEntries()+h['digi_y_'+str(plane)].GetEntries()
+                              digie.append(digiEntries)
+                              print('hit - nu position = ({:.6f}, {:.6f})'.format(fitMeanX-nuX, fitMeanY-nuY))
+                         h['digi_x_'+str(plane)].Draw()
+                         h['digi_dis'].cd(plane*2)
+                         h['digi_y_'+str(plane)].Draw()
+                    h['cls_dis'].Update()
+                    h['digi_dis'].Update()
+                    print(clsDist, digiDist, clsEntries, digiEntries)
+                    if clsDist<digiDist:
+                         fitcls+=1
+                         h['cls_fitg'].Fill(clsEntries)
+                         h['digi_fitb'].Fill(digiEntries)
+                         for nhit in clsHits:
+                              h['clh_fitg'].Fill(nhit)
+                         #print('cls->', clsEntries, digiEntries)
+                    else: 
+                         fitdigis+=1
+                         h['cls_fitb'].Fill(clsEntries)
+                         h['digi_fitg'].Fill(digiEntries)
+                         for nhit in clsHits:
+                              h['clh_fitb'].Fill(nhit)
+                         #print('digi->', digiEntries, clsEntries)
+                    cccount+=1
+          #print('cls/digi', max(clse), max(digie))
+          #print(max(clsHits))
+          print('cls/digis', fitcls/cccount, fitdigis/cccount)
+          h['cls_fitg'].SetLineColor(1)
+          h['cls_fitb'].SetLineColor(2)
+          h['digi_fitg'].SetLineColor(1)
+          h['digi_fitb'].SetLineColor(2)
+          h['clh_fitg'].SetLineColor(1)
+          h['clh_fitb'].SetLineColor(2)
+          h['cls_fitg'].SetStats(False)
+          h['cls_fitb'].SetStats(False)
+          h['digi_fitg'].SetStats(False)
+          h['digi_fitb'].SetStats(False)
+          h['clh_fitg'].SetStats(False)
+          h['clh_fitb'].SetStats(False)
+          h['cls_v_digi'].cd(1)
+          h['cls_fitb'].Draw()
+          h['cls_fitg'].Draw('SAME')
+          h['cls_v_digi'].cd(2)
+          h['digi_fitb'].Draw()
+          h['digi_fitg'].Draw('SAME')
+          h['cls_v_digi'].cd(3)
+          h['clh_fitb'].Draw()
+          h['clh_fitg'].Draw('SAME')
+          h['cls_v_digi'].cd(1).BuildLegend(0.6, 0.7, 0.9, 0.9)
+          h['cls_v_digi'].cd(2).BuildLegend(0.6, 0.7, 0.9, 0.9)
+          h['cls_v_digi'].cd(3).BuildLegend(0.6, 0.7, 0.9, 0.9)
+
+
+
+          #h['cls_fit'].GetYaxis().SetBinLabel(1,'better')
+          #h['cls_fit'].GetYaxis().SetBinLabel(2,'worse')
+          #h['digi_fit'].GetYaxis().SetBinLabel(1,'better')
+          #h['digi_fit'].GetYaxis().SetBinLabel(2,'worse')
+
+def test():
+     ut.bookCanvas(h,'cls_v_digi','better fit',1600, 800, cx=2,cy=1)
+     ut.bookHist(h,'digi_fit','digi_hits best fit',100,0, 100, 2, 0, 2)
+     ut.bookHist(h,'cls_fit','cls best_fit',100,0, 100, 2, 0, 2)
+     h['cls_fit'].Fill(10, 0)
+     h['digi_fit'].Fill(2, 1)
+     h['cls_fit'].Fill(14, 1)
+     h['digi_fit'].Fill(8, 0)
+     #h['cls_fit'].GetYaxis().SetBinLabel(1,'better')
+     #h['cls_fit'].GetYaxis().SetBinLabel(2,'worse')
+     #h['digi_fit'].GetYaxis().SetBinLabel(1,'better')
+     #h['digi_fit'].GetYaxis().SetBinLabel(2,'worse')
+     h['cls_v_digi'].cd(1)
+     h['cls_fit'].Draw('COLZ')
+     h['cls_v_digi'].cd(2)
+     h['digi_fit'].Draw('COLZ')
+
+def test1():
+     ut.bookCanvas(h,'cls_v_digi','better fit', 800, 800)
+     ut.bookHist(h,'digi_fit','digi_hits best fit', 10, 0, 10)
+     ut.bookHist(h,'cls_fit','cls best_fit', 10, 0, 10)
+     for i in range(5):
+          h['cls_fit'].Fill(i)
+          h['digi_fit'].Fill(10-i)
+     h['cls_v_digi'].cd(1)
+     #h['cls_fit'].SetLineColor(1)
+     #h['cls_fit'].SetLineColor(4)
+     h['cls_fit'].Draw('SAME')
+     #h['cls_v_digi'].cd(2)
+
+     h['digi_fit'].Draw('SAME')
 
 def charts():
      nx = 5+5+5
