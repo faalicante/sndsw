@@ -2,6 +2,8 @@ import ROOT,os
 import rootUtils as ut
 import shipunit as u
 import numpy as np
+import ctypes
+
 h={}
 from argparse import ArgumentParser
 parser = ArgumentParser()
@@ -31,6 +33,7 @@ modules['Scifi'].SiPMmapping()
 nav = ROOT.gGeoManager.GetCurrentNavigator()
 
 scifiDet = ROOT.gROOT.GetListOfGlobals().FindObject('Scifi')
+emulsionDet = ROOT.EmulsionDet()
 
 zBins = [289, 299, 302, 312, 315, 325, 328, 338, 341, 351, 354, 364]
 from array import array
@@ -323,6 +326,7 @@ def clusterDist(Nev=-1):
           #     h['cls_'+str(wall)+'_'+str(plane)].Draw('COLZ')
      
 def singleEvent(start=0,wall = 0,save=False):
+     nBins = 50
      #ut.bookCanvas(h,'z_dis','clusters z',1200, 1000, cx=1,cy=2)
      #h['hit_z_wall_'+str(wall)] = ROOT.TH1D('hit z wall '+str(wall), 'number of hits wall '+str(wall)+'; z [cm]', len(zBins)-1, zBins)
      #h['cls_z_wall_'+str(wall)] = ROOT.TH1D('cls z wall '+str(wall), 'number of clusters wall '+str(wall)+'; z [cm]', len(zBins)-1, zBins)
@@ -335,7 +339,8 @@ def singleEvent(start=0,wall = 0,save=False):
      ut.bookCanvas(h,'digi_dis'+str(wall),'digit hit distribution wall '+str(wall),cx=2,cy=5)
      h['digi_dis'+str(wall)].SetCanvasSize(1200, 2300)
      h['digi_dis'+str(wall)].SetWindowSize(1250, 1200)
-     nBins = 50
+     ut.bookCanvas(h,'eml_map','emulsion map',1200, 1200, cx=1,cy=1)
+     ut.bookHist(h, 'eml_xy', '2d emulsion map', nBins, -50, 0, nBins, 10, 60)
      for plane in range(1,6):
           ut.bookHist(h,'digi_'+str(wall)+'_'+str(plane),'2d digi wall '+str(wall)+' plane '+str(plane)+'; x [cm]; y [cm]',nBins,-50,0,nBins,10,60)
           ut.bookHist(h,'cls_'+str(wall)+'_'+str(plane),'2d cls wall '+str(wall)+' plane '+str(plane)+'; x [cm]; y [cm]',nBins,-50,0,nBins,10,60)
@@ -390,6 +395,7 @@ def singleEvent(start=0,wall = 0,save=False):
           #for wall in range(5):
           #h['hit_z_wall_'+str(wall)].Reset('ICES')
           #h['cls_z_wall_'+str(wall)].Reset('ICES')
+          h['eml_xy'].Reset()
           for plane in range(1, 6):
                h['cls_'+str(wall)+'_'+str(plane)].Reset('ICES')
                h['digi_'+str(wall)+'_'+str(plane)].Reset('ICES')
@@ -435,6 +441,28 @@ def singleEvent(start=0,wall = 0,save=False):
                                    for bin in np.arange(0, B[0]-A[0],sizeBin):
                                         h['digi_'+str(wall)+'_'+str(plane)].Fill(A[0]+bin, B[1])
                                    h['digi_y_'+str(wall)+'_'+str(plane)].Fill(B[1])
+               for eHit in event.EmulsionDetPoint:
+                    emulsionID = eHit.GetDetectorID()
+                    nWall = ctypes.c_int(0)
+                    nRaw = ctypes.c_int(0)
+                    nColumn = ctypes.c_int(0)
+                    nPlate = ctypes.c_int(0)
+                    emlX = eHit.GetX()
+                    emlY = eHit.GetY()
+                    #emlZ = eHit.GetZ()
+                    emulsionDet.DecodeBrickID(emulsionID, nWall, nRaw, nColumn, nPlate)
+                    nWall = nWall.value
+                    nRaw = nRaw.value
+                    nColumn = nColumn.value
+                    nPlate = nPlate.value
+                    #print('wall %d, raw %d, column %d, plate %d' %(int(nWall.value), int(nRaw.value), int(nColumn.value), int(nPlate.value)))
+                    if nWall == motherWall and nPlate == 55:
+                         #trackID = eHit.GetTrackID()
+                         #if trackID < 0: continue
+                         #if event.MCTrack[trackID].GetMotherId()==0:
+                              #print('event -> ', Nevent)
+                              #h['eml_z'].Fill(emlZ)
+                         h['eml_xy'].Fill(emlX, emlY)
                #prevID = -1
                #for aHit in event.ScifiPoint:
                #     nHit+=1
@@ -595,59 +623,65 @@ def singleEvent(start=0,wall = 0,save=False):
                h['cls_y_'+str(wall)+'_'+str(plane)].Draw()
                h['2d_map'+str(wall)].cd(plane*2-1)
                h['digi_'+str(wall)+'_'+str(plane)].Draw('COLZ')
-               if plane == wall+1:
-                    maxBinXY = h['digi_'+str(wall)+'_'+str(plane)].GetMaximumBin()
-                    maxValueXY = h['digi_'+str(wall)+'_'+str(plane)].GetBinContent(maxBinXY)
-                    nx  = h['digi_'+str(wall)+'_'+str(plane)].GetXaxis().GetNbins()+2
-                    ny  = h['digi_'+str(wall)+'_'+str(plane)].GetYaxis().GetNbins()+2
-                    maxBinX2 = (maxBinXY%nx)
-                    maxBinY2 = (((maxBinXY-maxBinX2)//nx)%ny)
-                    maxX2 = h['digi_'+str(wall)+'_'+str(plane)].GetXaxis().GetBinCenter(maxBinX2)
-                    maxY2 = h['digi_'+str(wall)+'_'+str(plane)].GetYaxis().GetBinCenter(maxBinY2)
-
-                    print(maxX2, maxY2)
-                    #for biny in range(1, nBins+1):
-                    #     for binx in range(1, nBins+1):
-                    #          bin = h['cls_'+str(wall)+'_'+str(plane)].GetBin(binx, biny)
-                    #          #print(bin, binx, biny, h['cls_'+str(wall)+'_'+str(plane)].GetBinContent(bin))
-                    #          if h['cls_'+str(wall)+'_'+str(plane)].GetBinContent(bin) < maxValueXY/3:
-                    #               h['cls_'+str(wall)+'_'+str(plane)].SetBinContent(bin, 0)
-                    f2gaus = ROOT.TF2('xygaus', 'xygaus', maxX2-3*sizeBin,maxX2+3*sizeBin, maxY2-3*sizeBin,maxY2+3*sizeBin)
-                    f2gaus.SetParameter(1, maxX2)
-                    f2gaus.SetParameter(3, maxY2)
-                    h['digi_'+str(wall)+'_'+str(plane)].Fit('xygaus','R')
-                    fitMeanX2 = f2gaus.GetParameter(1)
-                    fitMeanY2 = f2gaus.GetParameter(3)
-                    print('2d digi - nu position = ({:.6f}, {:.6f})'.format(fitMeanX2-nuX, fitMeanY2-nuY))
-
+               #if plane == wall+1:
+               #     maxBinXY = h['digi_'+str(wall)+'_'+str(plane)].GetMaximumBin()
+               #     maxValueXY = h['digi_'+str(wall)+'_'+str(plane)].GetBinContent(maxBinXY)
+               #     nx  = h['digi_'+str(wall)+'_'+str(plane)].GetXaxis().GetNbins()+2
+               #     ny  = h['digi_'+str(wall)+'_'+str(plane)].GetYaxis().GetNbins()+2
+               #     maxBinX2 = (maxBinXY%nx)
+               #     maxBinY2 = (((maxBinXY-maxBinX2)//nx)%ny)
+               #     maxX2 = h['digi_'+str(wall)+'_'+str(plane)].GetXaxis().GetBinCenter(maxBinX2)
+               #     maxY2 = h['digi_'+str(wall)+'_'+str(plane)].GetYaxis().GetBinCenter(maxBinY2)
+               #     print(maxX2, maxY2)
+               #     #for biny in range(1, nBins+1):
+               #     #     for binx in range(1, nBins+1):
+               #     #          bin = h['cls_'+str(wall)+'_'+str(plane)].GetBin(binx, biny)
+               #     #          #print(bin, binx, biny, h['cls_'+str(wall)+'_'+str(plane)].GetBinContent(bin))
+               #     #          if h['cls_'+str(wall)+'_'+str(plane)].GetBinContent(bin) < maxValueXY/3:
+               #     #               h['cls_'+str(wall)+'_'+str(plane)].SetBinContent(bin, 0)
+               #     f2gaus = ROOT.TF2('xygaus', 'xygaus', maxX2-3*sizeBin,maxX2+3*sizeBin, maxY2-3*sizeBin,maxY2+3*sizeBin)
+               #     f2gaus.SetParameter(1, maxX2)
+               #     f2gaus.SetParameter(3, maxY2)
+               #     h['digi_'+str(wall)+'_'+str(plane)].Fit('xygaus','R')
+               #     fitMeanX2 = f2gaus.GetParameter(1)
+               #     fitMeanY2 = f2gaus.GetParameter(3)
+               #     print('2d digi - nu position = ({:.6f}, {:.6f})'.format(fitMeanX2-nuX, fitMeanY2-nuY))
                h['2d_map'+str(wall)].cd(plane*2)
                h['cls_'+str(wall)+'_'+str(plane)].Draw('COLZ')
-               if plane == wall+1:
-                    maxBinXY = h['cls_'+str(wall)+'_'+str(plane)].GetMaximumBin()
-                    maxValueXY = h['cls_'+str(wall)+'_'+str(plane)].GetBinContent(maxBinXY)
-                    nx  = h['cls_'+str(wall)+'_'+str(plane)].GetXaxis().GetNbins()+2
-                    ny  = h['cls_'+str(wall)+'_'+str(plane)].GetYaxis().GetNbins()+2
-                    maxBinX2 = (maxBinXY%nx)
-                    maxBinY2 = (((maxBinXY-maxBinX2)//nx)%ny)
-                    maxX2 = h['cls_'+str(wall)+'_'+str(plane)].GetXaxis().GetBinCenter(maxBinX2)
-                    maxY2 = h['cls_'+str(wall)+'_'+str(plane)].GetYaxis().GetBinCenter(maxBinY2)
-
-                    print(maxX2, maxY2)
-                    #for biny in range(1, nBins+1):
-                    #     for binx in range(1, nBins+1):
-                    #          bin = h['cls_'+str(wall)+'_'+str(plane)].GetBin(binx, biny)
-                    #          #print(bin, binx, biny, h['cls_'+str(wall)+'_'+str(plane)].GetBinContent(bin))
-                    #          if h['cls_'+str(wall)+'_'+str(plane)].GetBinContent(bin) < maxValueXY/3:
-                    #               h['cls_'+str(wall)+'_'+str(plane)].SetBinContent(bin, 0)
-                    f2gaus = ROOT.TF2('xygaus', 'xygaus', maxX2-3*sizeBin,maxX2+3*sizeBin, maxY2-3*sizeBin,maxY2+3*sizeBin)
-                    f2gaus.SetParameter(1, maxX2)
-                    f2gaus.SetParameter(3, maxY2)
-                    h['cls_'+str(wall)+'_'+str(plane)].Fit('xygaus','R')
-                    fitMeanX2 = f2gaus.GetParameter(1)
-                    fitMeanY2 = f2gaus.GetParameter(3)
-                    print('2d cls - nu position = ({:.6f}, {:.6f})'.format(fitMeanX2-nuX, fitMeanY2-nuY))
+               #if plane == wall+1:
+               #     maxBinXY = h['cls_'+str(wall)+'_'+str(plane)].GetMaximumBin()
+               #     maxValueXY = h['cls_'+str(wall)+'_'+str(plane)].GetBinContent(maxBinXY)
+               #     nx  = h['cls_'+str(wall)+'_'+str(plane)].GetXaxis().GetNbins()+2
+               #     ny  = h['cls_'+str(wall)+'_'+str(plane)].GetYaxis().GetNbins()+2
+               #     maxBinX2 = (maxBinXY%nx)
+               #     maxBinY2 = (((maxBinXY-maxBinX2)//nx)%ny)
+               #     maxX2 = h['cls_'+str(wall)+'_'+str(plane)].GetXaxis().GetBinCenter(maxBinX2)
+               #     maxY2 = h['cls_'+str(wall)+'_'+str(plane)].GetYaxis().GetBinCenter(maxBinY2)
+#
+               #     print(maxX2, maxY2)
+               #     #for biny in range(1, nBins+1):
+               #     #     for binx in range(1, nBins+1):
+               #     #          bin = h['cls_'+str(wall)+'_'+str(plane)].GetBin(binx, biny)
+               #     #          #print(bin, binx, biny, h['cls_'+str(wall)+'_'+str(plane)].GetBinContent(bin))
+               #     #          if h['cls_'+str(wall)+'_'+str(plane)].GetBinContent(bin) < maxValueXY/3:
+               #     #               h['cls_'+str(wall)+'_'+str(plane)].SetBinContent(bin, 0)
+               #     f2gaus = ROOT.TF2('xygaus', 'xygaus', maxX2-3*sizeBin,maxX2+3*sizeBin, maxY2-3*sizeBin,maxY2+3*sizeBin)
+               #     f2gaus.SetParameter(1, maxX2)
+               #     f2gaus.SetParameter(3, maxY2)
+               #     h['cls_'+str(wall)+'_'+str(plane)].Fit('xygaus','R')
+               #     fitMeanX2 = f2gaus.GetParameter(1)
+               #     fitMeanY2 = f2gaus.GetParameter(3)
+               #     print('2d cls - nu position = ({:.6f}, {:.6f})'.format(fitMeanX2-nuX, fitMeanY2-nuY))
           h['2d_map'+str(wall)].Update()
           h['cls_dis'+str(wall)].Update()
+          h['eml_map'].cd(1)
+          h['eml_xy'].Draw('COLZ')
+          #h['eml_map'].cd(2)
+          #h['eml_z'].Draw()
+          h['eml_map'].Update()
+          barX = h['eml_xy'].GetMean(1)
+          barY = h['eml_xy'].GetMean(2)
+          print('eml x y:', barX, barY)
 
           print(clsDist, digiDist, clsEntries, digiEntries, hitEntries)
           #print('nu vertex ({:.6f}, {:.6f}) / cls baricenter ({:.6f}, {:.6f}) / cls 2d ({:.6f}, {:.6f})'.format(mX, mY, fitMeanX, fitMeanY, fitMeanX2, fitMeanY2))
@@ -1033,7 +1067,7 @@ def allDigit(Nev = -1):
      print('srY', srY)
      print('srD', srD)
 
-def allall(digi=True, cluster=True,Nev = -1):
+def allall(Nev = -1):
      nBin = 50
      sizeBin = 50/nBin
      fitRange = [3]
@@ -1075,159 +1109,157 @@ def allall(digi=True, cluster=True,Nev = -1):
                Nev=Nev-1
                motherWall = -1
                cc = 0
+               digicount=0
+               incoming_nu = event.MCTrack[0]
+               outgoing_l = event.MCTrack[1]
                clsHits = []
-               for mcTrack in event.MCTrack:
-                    if mcTrack.GetMotherId()==-1 and mcTrack.GetPdgCode()==14:
-                         mX = mcTrack.GetStartX()
-                         mY = mcTrack.GetStartY()
-                         mZ = mcTrack.GetStartZ()
-                         ROOT.gGeoManager.FindNode(mX, mY, mZ)
-                         node = ROOT.gGeoManager.GetPath()
-                         for wall in range(5):
-                              if 'Wall_'+str(wall) in node:
-                                   motherWall = wall
-                                   scifiplane = '/cave_1/Detector_0/volTarget_1/ScifiVolume{}_{}000000'.format(wall+1, wall+1)
-                                   nav.cd(scifiplane)
-                                   currNav = nav.GetCurrentNode()
-                                   S = currNav.GetVolume().GetShape()
-                                   ox,oy,oz = S.GetOrigin()[0],S.GetOrigin()[1],S.GetOrigin()[2]
-                                   P = array('d',[ox,oy,oz])
-                                   M = array('d',[0,0,0])
-                                   nav.LocalToMaster(P,M)
-                                   nuZ = M[2]
-                                   pX = mcTrack.GetPx()
-                                   pY = mcTrack.GetPy()
-                                   pZ = mcTrack.GetPz()
-                                   nuM = mcTrack.GetMass()
-                                   V.SetXYZM(pX, pY, pZ, nuM)
-                                   nuE = V.E()
-                                   nuX = (pX/pZ)*(nuZ-mZ)+mX
-                                   nuY = (pY/pZ)*(nuZ-mZ)+mY
-                    elif mcTrack.GetMotherId()==0 and mcTrack.GetPdgCode()==13:
-                         cc = 1
-                         break
+               if incoming_nu.GetPdgCode()==14 and outgoing_l.GetPdgCode()==13:
+                    cc = 1
+                    mX = incoming_nu.GetStartX()
+                    mY = incoming_nu.GetStartY()
+                    mZ = incoming_nu.GetStartZ()
+                    ROOT.gGeoManager.FindNode(mX, mY, mZ)
+                    node = ROOT.gGeoManager.GetPath()
+                    for wall in range(5):
+                         if 'Wall_'+str(wall) in node:
+                              motherWall = wall
+                              scifiplane = '/cave_1/Detector_0/volTarget_1/ScifiVolume{}_{}000000'.format(wall+1, wall+1)
+                              nav.cd(scifiplane)
+                              currNav = nav.GetCurrentNode()
+                              S = currNav.GetVolume().GetShape()
+                              ox,oy,oz = S.GetOrigin()[0],S.GetOrigin()[1],S.GetOrigin()[2]
+                              P = array('d',[ox,oy,oz])
+                              M = array('d',[0,0,0])
+                              nav.LocalToMaster(P,M)
+                              nuZ = M[2]
+                              pX = incoming_nu.GetPx()
+                              pY = incoming_nu.GetPy()
+                              pZ = incoming_nu.GetPz()
+                              nuE = incoming_nu.GetEnergy()
+                              nuX = (pX/pZ)*(nuZ-mZ)+mX
+                              nuY = (pY/pZ)*(nuZ-mZ)+mY
                if motherWall == -1: continue
-               if cc:
-                    #print('N wall nbin fitrange', N, motherWall, nBin, binRange)
-                    #print('wall', motherWall, N)
+               if not cc: continue
+               #print('N wall nbin fitrange', N, motherWall, nBin, binRange)
+               #print('wall', motherWall, N)
+               for plane in range(1, 6):
+                    h['cls_x_'+str(plane)].Reset()
+                    h['cls_y_'+str(plane)].Reset()
+                    h['digi_x_'+str(plane)].Reset()
+                    h['digi_y_'+str(plane)].Reset()
+               clusters = makeClusters(event)
+               #print(N, len(clusters))
+               for aHit in event.Digi_ScifiHits:
+                    if not aHit.isValid(): continue
+                    digicount+=1
+                    scifiDet.GetSiPMPosition(aHit.GetDetectorID(),A,B)
+                    digiStation = int(aHit.GetDetectorID()/1000000)
                     for plane in range(1, 6):
-                         h['cls_x_'+str(plane)].Reset()
-                         h['cls_y_'+str(plane)].Reset()
-                         h['digi_x_'+str(plane)].Reset()
-                         h['digi_y_'+str(plane)].Reset()
-                    if cluster:
-                         clusters = makeClusters(event)
-                         #print(N, len(clusters))
-                         for aCl in clusters:
-                              aCl.GetPosition(A,B)
-                              vertical = int(aCl.GetFirst()/100000)%10==1
-                              clStation = int(aCl.GetFirst()/1000000)
-                              clsHits.append(aCl.GetN())
-                              for plane in range(1, 6):
-                                   if plane == clStation:
-                                        if vertical: h['cls_x_'+str(plane)].Fill(A[0])
-                                        else: h['cls_y_'+str(plane)].Fill(B[1])
-                    if digi:
-                         for aHit in event.Digi_ScifiHits:
-                              if not aHit.isValid(): continue
-                              scifiDet.GetSiPMPosition(aHit.GetDetectorID(),A,B)
-                              digiStation = int(aHit.GetDetectorID()/1000000)
-                              for plane in range(1, 6):
-                                   if plane == digiStation:
-                                        if aHit.isVertical(): h['digi_x_'+str(plane)].Fill(A[0])
-                                        else: h['digi_y_'+str(plane)].Fill(B[1])
-                    print('event -> ', N)
-                    if h['digi_y_'+str(motherWall+1)].GetEntries()==0 or h['digi_x_'+str(motherWall+1)].GetEntries()==0:
-                         continue
-                    if h['cls_y_'+str(motherWall+1)].GetEntries()==0 or h['cls_x_'+str(motherWall+1)].GetEntries()==0:
-                         continue
+                         if plane == digiStation:
+                              if aHit.isVertical(): h['digi_x_'+str(plane)].Fill(A[0])
+                              else: h['digi_y_'+str(plane)].Fill(B[1])
+               for aCl in clusters:
+                    aCl.GetPosition(A,B)
+                    vertical = int(aCl.GetFirst()/100000)%10==1
+                    clStation = int(aCl.GetFirst()/1000000)
+                    clsHits.append(aCl.GetN())
                     for plane in range(1, 6):
-                         h['cls_dis'].cd(plane*2-1)
-                         if plane == motherWall+1:
-                              maxBinX = h['cls_x_'+str(plane)].GetMaximumBin()
-                              maxBinY = h['cls_y_'+str(plane)].GetMaximumBin()
-                              maxValueX = h['cls_x_'+str(plane)].GetBinContent(maxBinX)
-                              maxValueY = h['cls_y_'+str(plane)].GetBinContent(maxBinY)
-                              maxX = h['cls_x_'+str(plane)].GetBinCenter(maxBinX)
-                              maxY = h['cls_y_'+str(plane)].GetBinCenter(maxBinY)
-                              fitX = h['cls_x_'+str(plane)].Fit('gaus','SQ','',maxX-binRange*sizeBin,maxX+binRange*sizeBin)
-                              fitStatusX = int(fitX)
-                              fitY = h['cls_y_'+str(plane)].Fit('gaus','SQ','',maxY-binRange*sizeBin,maxY+binRange*sizeBin)
-                              fitStatusY = int(fitY)
-                              fitMeanX = fitX.Parameter(1)
-                              fitVarX = fitX.Parameter(2)
-                              fitMeanY = fitY.Parameter(1)
-                              fitVarY = fitY.Parameter(2)
-                              quantile = array('d',[0.5])
-                              if fitStatusX!=0 or fitX.Parameter(0)>2*h['cls_x_'+str(plane)].GetEntries():
-                                   medianX = array('d',[0])
-                                   #print('x fit not converged')
-                                   h['cls_x_'+str(plane)].GetQuantiles(1, medianX, quantile)
-                                   fitMeanX = medianX[0]
-                              if fitStatusY!=0 or fitY.Parameter(0)>2*h['cls_y_'+str(plane)].GetEntries():
-                                   medianY = array('d',[0])
-                                   #print('y fit not converged')
-                                   h['cls_y_'+str(plane)].GetQuantiles(1, medianY, quantile)
-                                   fitMeanY = medianY[0]
-                              clsDist = ROOT.TMath.Sqrt((fitMeanX-nuX)**2+(fitMeanY-nuY)**2)
-                              clsEntries = h['cls_x_'+str(plane)].GetEntries()+h['cls_y_'+str(plane)].GetEntries()
-                              clse.append(clsEntries)
-                              print('nu vertex ({:.6f}, {:.6f})'.format(nuX, nuY))
-                              print('cls - nu position = ({:.6f}, {:.6f})'.format(fitMeanX-nuX, fitMeanY-nuY))
-                         h['cls_x_'+str(plane)].Draw()
-                         h['cls_dis'].cd(plane*2)
-                         h['cls_y_'+str(plane)].Draw()
-                         h['digi_dis'].cd(plane*2-1)
-                         if plane == motherWall+1:
-                              maxBinX = h['digi_x_'+str(plane)].GetMaximumBin()
-                              maxBinY = h['digi_y_'+str(plane)].GetMaximumBin()
-                              maxValueX = h['digi_x_'+str(plane)].GetBinContent(maxBinX)
-                              maxValueY = h['digi_y_'+str(plane)].GetBinContent(maxBinY)
-                              maxX = h['digi_x_'+str(plane)].GetBinCenter(maxBinX)
-                              maxY = h['digi_y_'+str(plane)].GetBinCenter(maxBinY)
-                              fitX = h['digi_x_'+str(plane)].Fit('gaus','SQ','',maxX-3*sizeBin,maxX+3*sizeBin)
-                              fitStatusX = int(fitX)
-                              fitY = h['digi_y_'+str(plane)].Fit('gaus','SQ','',maxY-3*sizeBin,maxY+3*sizeBin)
-                              fitStatusY = int(fitY)
-                              fitMeanX = fitX.Parameter(1)
-                              fitVarX = fitX.Parameter(2)
-                              fitMeanY = fitY.Parameter(1)
-                              fitVarY = fitY.Parameter(2)
-                              quantile = array('d',[0.5])
-                              if fitStatusX!=0 or fitX.Parameter(0)>2*h['digi_x_'+str(plane)].GetEntries():
-                                   medianX = array('d',[0])
-                                   h['digi_x_'+str(plane)].GetQuantiles(1, medianX, quantile)
-                              if fitStatusY!=0 or fitY.Parameter(0)>2*h['digi_y_'+str(plane)].GetEntries():
-                                   medianY = array('d',[0])
-                                   h['digi_y_'+str(plane)].GetQuantiles(1, medianY, quantile)
-                              digiDist = ROOT.TMath.Sqrt((fitMeanX-nuX)**2+(fitMeanY-nuY)**2)
-                              digiEntries = h['digi_x_'+str(plane)].GetEntries()+h['digi_y_'+str(plane)].GetEntries()
-                              digie.append(digiEntries)
-                              print('hit - nu position = ({:.6f}, {:.6f})'.format(fitMeanX-nuX, fitMeanY-nuY))
-                         h['digi_x_'+str(plane)].Draw()
-                         h['digi_dis'].cd(plane*2)
-                         h['digi_y_'+str(plane)].Draw()
-                    if digiEntries<80 and clsEntries<30: pass
-                    h['cls_dis'].Update()
-                    h['digi_dis'].Update()
-                    print(clsDist, digiDist, clsEntries, digiEntries)
-                    if clsDist<digiDist:
-                         fitcls+=1
-                         h['diffc'].Fill(digiDist-clsDist)
-                         h['cls_fitg'].Fill(clsEntries)
-                         h['digi_fitb'].Fill(digiEntries)
-                         for nhit in clsHits:
-                              h['clh_fitg'].Fill(nhit)
-                         #print('cls->', clsEntries, digiEntries)
-                    else: 
-                         fitdigis+=1
-                         h['diffd'].Fill(digiDist-clsDist)
-                         h['cls_fitb'].Fill(clsEntries)
-                         h['digi_fitg'].Fill(digiEntries)
-                         for nhit in clsHits:
-                              h['clh_fitb'].Fill(nhit)
-                         #print('digi->', digiEntries, clsEntries)
-                    cccount+=1
+                         if plane == clStation:
+                              if vertical: h['cls_x_'+str(plane)].Fill(A[0])
+                              else: h['cls_y_'+str(plane)].Fill(B[1])
+               print('event -> ', N)
+               if h['digi_y_'+str(motherWall+1)].GetEntries()==0 or h['digi_x_'+str(motherWall+1)].GetEntries()==0:
+                    continue
+               if h['cls_y_'+str(motherWall+1)].GetEntries()==0 or h['cls_x_'+str(motherWall+1)].GetEntries()==0:
+                    continue
+               if digicount > 100: continue
+               for plane in range(1, 6):
+                    h['cls_dis'].cd(plane*2-1)
+                    if plane == motherWall+1:
+                         maxBinX = h['cls_x_'+str(plane)].GetMaximumBin()
+                         maxBinY = h['cls_y_'+str(plane)].GetMaximumBin()
+                         maxValueX = h['cls_x_'+str(plane)].GetBinContent(maxBinX)
+                         maxValueY = h['cls_y_'+str(plane)].GetBinContent(maxBinY)
+                         maxX = h['cls_x_'+str(plane)].GetBinCenter(maxBinX)
+                         maxY = h['cls_y_'+str(plane)].GetBinCenter(maxBinY)
+                         fitX = h['cls_x_'+str(plane)].Fit('gaus','SQ','',maxX-binRange*sizeBin,maxX+binRange*sizeBin)
+                         fitStatusX = int(fitX)
+                         fitY = h['cls_y_'+str(plane)].Fit('gaus','SQ','',maxY-binRange*sizeBin,maxY+binRange*sizeBin)
+                         fitStatusY = int(fitY)
+                         fitMeanX = fitX.Parameter(1)
+                         fitVarX = fitX.Parameter(2)
+                         fitMeanY = fitY.Parameter(1)
+                         fitVarY = fitY.Parameter(2)
+                         quantile = array('d',[0.5])
+                         if fitStatusX!=0 or fitX.Parameter(0)>2*h['cls_x_'+str(plane)].GetEntries():
+                              medianX = array('d',[0])
+                              #print('x fit not converged')
+                              h['cls_x_'+str(plane)].GetQuantiles(1, medianX, quantile)
+                              fitMeanX = medianX[0]
+                         if fitStatusY!=0 or fitY.Parameter(0)>2*h['cls_y_'+str(plane)].GetEntries():
+                              medianY = array('d',[0])
+                              #print('y fit not converged')
+                              h['cls_y_'+str(plane)].GetQuantiles(1, medianY, quantile)
+                              fitMeanY = medianY[0]
+                         clsDist = ROOT.TMath.Sqrt((fitMeanX-nuX)**2+(fitMeanY-nuY)**2)
+                         clsEntries = h['cls_x_'+str(plane)].GetEntries()+h['cls_y_'+str(plane)].GetEntries()
+                         clse.append(clsEntries)
+                         print('nu vertex ({:.6f}, {:.6f})'.format(nuX, nuY))
+                         print('cls - nu position = ({:.6f}, {:.6f})'.format(fitMeanX-nuX, fitMeanY-nuY))
+                    h['cls_x_'+str(plane)].Draw()
+                    h['cls_dis'].cd(plane*2)
+                    h['cls_y_'+str(plane)].Draw()
+                    h['digi_dis'].cd(plane*2-1)
+                    if plane == motherWall+1:
+                         maxBinX = h['digi_x_'+str(plane)].GetMaximumBin()
+                         maxBinY = h['digi_y_'+str(plane)].GetMaximumBin()
+                         maxValueX = h['digi_x_'+str(plane)].GetBinContent(maxBinX)
+                         maxValueY = h['digi_y_'+str(plane)].GetBinContent(maxBinY)
+                         maxX = h['digi_x_'+str(plane)].GetBinCenter(maxBinX)
+                         maxY = h['digi_y_'+str(plane)].GetBinCenter(maxBinY)
+                         fitX = h['digi_x_'+str(plane)].Fit('gaus','SQ','',maxX-3*sizeBin,maxX+3*sizeBin)
+                         fitStatusX = int(fitX)
+                         fitY = h['digi_y_'+str(plane)].Fit('gaus','SQ','',maxY-3*sizeBin,maxY+3*sizeBin)
+                         fitStatusY = int(fitY)
+                         fitMeanX = fitX.Parameter(1)
+                         fitVarX = fitX.Parameter(2)
+                         fitMeanY = fitY.Parameter(1)
+                         fitVarY = fitY.Parameter(2)
+                         quantile = array('d',[0.5])
+                         if fitStatusX!=0 or fitX.Parameter(0)>2*h['digi_x_'+str(plane)].GetEntries():
+                              medianX = array('d',[0])
+                              h['digi_x_'+str(plane)].GetQuantiles(1, medianX, quantile)
+                         if fitStatusY!=0 or fitY.Parameter(0)>2*h['digi_y_'+str(plane)].GetEntries():
+                              medianY = array('d',[0])
+                              h['digi_y_'+str(plane)].GetQuantiles(1, medianY, quantile)
+                         digiDist = ROOT.TMath.Sqrt((fitMeanX-nuX)**2+(fitMeanY-nuY)**2)
+                         digiEntries = h['digi_x_'+str(plane)].GetEntries()+h['digi_y_'+str(plane)].GetEntries()
+                         digie.append(digiEntries)
+                         print('hit - nu position = ({:.6f}, {:.6f})'.format(fitMeanX-nuX, fitMeanY-nuY))
+                    h['digi_x_'+str(plane)].Draw()
+                    h['digi_dis'].cd(plane*2)
+                    h['digi_y_'+str(plane)].Draw()
+               if digiEntries<80 and clsEntries<30: pass
+               h['cls_dis'].Update()
+               h['digi_dis'].Update()
+               print(clsDist, digiDist, clsEntries, digiEntries)
+               if clsDist<digiDist:
+                    fitcls+=1
+                    h['diffc'].Fill(digiDist-clsDist)
+                    h['cls_fitg'].Fill(clsEntries)
+                    h['digi_fitb'].Fill(digiEntries)
+                    for nhit in clsHits:
+                         h['clh_fitg'].Fill(nhit)
+                    #print('cls->', clsEntries, digiEntries)
+               else: 
+                    fitdigis+=1
+                    h['diffd'].Fill(digiDist-clsDist)
+                    h['cls_fitb'].Fill(clsEntries)
+                    h['digi_fitg'].Fill(digiEntries)
+                    for nhit in clsHits:
+                         h['clh_fitb'].Fill(nhit)
+                    #print('digi->', digiEntries, clsEntries)
+               cccount+=1
           #print('cls/digi', max(clse), max(digie))
           #print(max(clsHits))
           print('cls/digis', cccount, fitcls/cccount, fitdigis/cccount)
