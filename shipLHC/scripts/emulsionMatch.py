@@ -1,4 +1,7 @@
 import ROOT
+import rootUtils as ut
+h = {}
+
 
 path = '/home/fabio/Simulations/numu_sim_25_July_2022/'
 scifiFile = path+'scifi_fits.txt'
@@ -76,46 +79,57 @@ def blockEvents(Nint = 200):
     #distF = ROOT.TH1D('distF', 'false event distance', 10, 0, 1)
     tCount = 0
     fCount = 0
-    N = 0
     block = 0
+    average = 0
     with open(emulsionFile, 'r') as fe:
+        N1 = 0
         linesEml = fe.readlines()
         for lineEml in linesEml:
             lineEml = lineEml.replace('\n', '')
             lineEml = lineEml.split()
             if lineEml[0] == 'event': continue
-            N+=1
+            N1+=1
             emulsionEvent = int(lineEml[0])
             emulsionBarX = float(lineEml[1])
             emulsionBarY = float(lineEml[3])
+            #print('eml', emulsionEvent)
             minDist = 100
             with open (scifiFile, 'r') as fs:
+                N2 = 0
                 linesScifi = fs.readlines()
-                for lineScifi in linesScifi:
-                    lineScifi = lineScifi.replace('\n', '')
-                    lineScifi = lineScifi.split()
-                    if lineScifi[0] == 'event': continue
-                    scifiBarX = float(lineScifi[1])
-                    scifiBarY = float(lineScifi[3])
+                if Nint*(block+1) > len(linesScifi): break
+                for x in range(Nint):
+                    y = x + Nint * block
+                    linesScifi[y] = linesScifi[y].replace('\n', '')
+                    linesScifi[y] = linesScifi[y].split()
+                    N2+=1
+                    scifiBarX = float(linesScifi[y][1])
+                    scifiBarY = float(linesScifi[y][3])
                     dist = ROOT.TMath.Sqrt((emulsionBarX-scifiBarX)**2+(emulsionBarY-scifiBarY)**2)
+                    #print('scifi', int(linesScifi[y][0]))
+
+                    #print(dist)
                     if dist < minDist:
                         minDist = dist
-                        scifiEvent = int(lineScifi[0])
+                        scifiEvent = int(linesScifi[y][0])
                 if scifiEvent == emulsionEvent:
                     #distT.Fill(minDist)
                     tCount+=1
                 else:
                     #distF.Fill(minDist)
                     fCount+=1
-            if N == Nint: 
-                N = 0
+            if N1 == Nint: 
+                N1 = 0
                 block+=1
                 #tCount = distT.GetEntries()
                 #fCount = distF.GetEntries()
                 print('block {} true {} false {}'.format(block, tCount, fCount))
                 print('block {} matching efficiency {}'.format(block, tCount/(tCount+fCount)))
+                average += tCount/(tCount+fCount)
                 tCount = 0
                 fCount = 0
+    average = average/block
+    print('average efficiency', average)      
 
 
     
@@ -125,3 +139,38 @@ def blockEvents(Nint = 200):
     #distT.Draw()
     #distF.Draw('same')
     #c.Print('/home/fabio/Scrivania/match.png')
+
+def hitCorr():
+    hits = []
+    tracks = []
+    with open(emulsionFile, 'r') as fe:
+        linesEml = fe.readlines()
+        for lineEml in linesEml:
+            lineEml = lineEml.replace('\n', '')
+            lineEml = lineEml.split()
+            if lineEml[0] == 'event': continue
+            tracks.append(float(lineEml[5]))
+    with open (scifiFile, 'r') as fs:
+        linesScifi = fs.readlines()
+        for lineScifi in linesScifi:
+            lineScifi = lineScifi.replace('\n', '')
+            lineScifi = lineScifi.split()
+            if lineScifi[0] == 'event': continue
+            hits.append(float(lineScifi[5])+float(lineScifi[6]))
+    minTrack = min(tracks)-1
+    maxTrack = max(tracks)+1
+    minHit = min(hits)-1
+    maxHit = max(hits)+1
+    print(minTrack, maxTrack, minHit, maxHit)
+    entries = len(tracks)
+    if len(tracks) != len(hits):
+        print('Error: different size')
+    ut.bookCanvas(h, 'corr', 'correlation', 1280, 720)
+    ut.bookHist(h, 'hits', 'hits vs tracks;#tracks;#hits', 100, minTrack, maxTrack, 100, minHit, maxHit)
+    for i in range(entries):
+        h['hits'].Fill(tracks[i], hits[i])
+    h['hits'].SetMarkerStyle(20)
+    h['hits'].SetMarkerColor(1)
+    h['hits'].SetMarkerSize(0.4)
+    h['hits'].Draw()
+    h['corr'].Print('/home/fabio/cernbox/softphys/corr_all.png')
