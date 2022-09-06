@@ -3,9 +3,9 @@ import rootUtils as ut
 h = {}
 
 
-path = '/home/fabio/Simulations/numu_sim_25_July_2022/'
+path = '/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/'
 scifiFile = path+'scifi_fits.txt'
-emulsionFile = path+'eml_fits.txt'
+emulsionFile = path+'emulsion_fits.txt'
 
 def allEvents():
     c = ROOT.TCanvas('residuals', 'residuals')
@@ -130,7 +130,6 @@ def blockEvents(Nint = 200):
                 fCount = 0
     average = average/block
     print('average efficiency', average)      
-
 
     
     #distT.SetMaximum(100)
