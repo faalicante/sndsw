@@ -5,7 +5,7 @@ import numpy as np
 import time
 h={}
 
-
+ROOT.gROOT.SetBatch(True)
 from argparse import ArgumentParser
 parser = ArgumentParser()
 parser.add_argument("-r", "--runNumber", dest="runNumber", help="run number", type=int,required=False)
@@ -29,7 +29,7 @@ nameGeofile = 'geofile_full.Genie-TGeant4.root'
 nameSim = 'sndLHC.Genie-TGeant4_dig.root'
 geoFile = pathGeofile+nameGeofile
 if options.ProcID is not None:
-     simFile = pathSim+str(procID+1)+'/'+nameSim
+     simFile = pathSim+str(options.ProcID+1)+'/'+nameSim
 else:
      simFile = pathSim+str(1)+'/'+nameSim
 
@@ -114,6 +114,7 @@ else:
      ut.bookHist(h,'res_x','x residuals; x [cm]',100,-20,20)
      ut.bookHist(h,'res_y','y residuals; y [cm]',100,-20,20)
      ut.bookHist(h,'res_d','distance residuals; [cm]',100,0,25)
+print('SciFi start')
 A,B = ROOT.TVector3(),ROOT.TVector3()
 ccCount=0
 Nev = eventTree.GetEntries()

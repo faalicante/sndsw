@@ -4,6 +4,7 @@ import shipunit as u
 import ctypes
 import time
 
+ROOT.gROOT.SetBatch(True)
 h={}
 from argparse import ArgumentParser
 parser = ArgumentParser()
@@ -28,7 +29,7 @@ nameGeofile = 'geofile_full.Genie-TGeant4.root'
 nameSim = 'sndLHC.Genie-TGeant4_dig.root'
 geoFile = pathGeofile+nameGeofile
 if options.ProcID is not None:
-     simFile = pathSim+str(procID+1)+'/'+nameSim
+     simFile = pathSim+str(options.ProcID+1)+'/'+nameSim
 else:
      simFile = pathSim+str(1)+'/'+nameSim
 
@@ -132,7 +133,7 @@ if block:
                ut.bookHist(h, 'eml_map_'+str(i)+str(j), 'eml_tracks_'+str(i)+str(j)+';x[cm];y[cm]', nBins, targetRangeX[0], targetRangeX[1], nBins, targetRangeY[0], targetRangeY[1])
                ut.bookHist(h, 'scifi_map_'+str(i)+str(j), 'scifi_bar_'+str(i)+str(j)+';x[cm];y[cm]', nBins, targetRangeX[0], targetRangeX[1], nBins, targetRangeY[0], targetRangeY[1])
 
-start_time = time.time()
+print('Emulsion start')
 A, B = ROOT.TVector3(), ROOT.TVector3()
 ccCount=0
 inCount = 0
@@ -205,7 +206,7 @@ for i_event, event in enumerate(eventTree):
                     #print('Error: track out of wall', emlX, emlY)
      if not emulsion: continue     
      ccCount+=1
-     if block and if ccCount > 199:break
+     #if (block == True) and if (ccCount > 199):break
      mc = ROOT.TGraph()
      mc.SetPoint(1, nuX, nuY)
      mc.SetMarkerStyle(29)
@@ -251,6 +252,7 @@ for i_event, event in enumerate(eventTree):
           rc = input("hit return for next event or q for quit: ")
           if rc=='q': break
 
+'''
 if block:
      scifiCount = 0
      path = '/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/
@@ -330,6 +332,7 @@ if block:
      #h['map'].Print('/home/fabio/cernbox/softphys/2dmap.png')
      histoFile.cd()
      h['map'].Write()
+'''
 
 print("Total number of event: {}".format(eventTree.GetEntries()))
 print("Selected number of event: {}".format(ccCount))
