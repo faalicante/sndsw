@@ -11,12 +11,32 @@ parser.add_argument("-r", "--runNumber", dest="runNumber", help="run number", ty
 parser.add_argument("-p", "--path", dest="path", help="run number",required=False,default="")
 parser.add_argument("-f", "--inputFile", dest="fname", help="file name for MC", type=str,default=None,required=False)
 parser.add_argument("-g", "--geoFile", dest="geoFile", help="geofile", required=False)
+parser.add_argument("--offline", dest="OffMode", default=False, action="store_true")
+parser.add_argument("-clusID", dest="ClusterID", required=False, default=0)
+parser.add_argument("-procID", dest="ProcID", required=False, default=None, type=int)
 options = parser.parse_args()
 
-xroot_prefix = 'root:://eosuser.cern.ch/'
-mc_geoFile = xroot_prefix+'/eos/user/a/aiulian/sim_snd/numu_sim_activeemu_withcrisfiles_25_July_2022/1/geofile_full.Genie-TGeant4.root'
+if options.OffMode:
+     xroot_prefix = 'root:://eosuser.cern.ch/'
+else:
+     xroot_prefix = ''
+pathGeofile = xroot_prefix+'/eos/user/a/aiulian/sim_snd/numu_sim_activeemu_withcrisfiles_25_July_2022/1/'
+pathSim = xroot_prefix+'/eos/user/a/aiulian/sim_snd/numu_sim_activeemu_withcrisfiles_25_July_2022/'
+pathPlots = '/afs/cern.ch/work/f/falicant/public/matching/histo_match/'
+pathText = '/afs/cern.ch/work/f/falicant/public/matching/text_match/'
+nameGeofile = 'geofile_full.Genie-TGeant4.root'
+nameSim = 'sndLHC.Genie-TGeant4_dig.root'
+geoFile = pathGeofile+nameGeofile
+if options.ProcID is not None:
+     simFile = pathSim+str(procID+1)+'/'+nameSim
+else:
+     simFile = pathSim+str(1)+'/'+nameSim
 
-fgeo = ROOT.TFile.Open(mc_geoFile)
+#mc_geoFile = '/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/1/geofile_full.Genie-TGeant4.root'
+
+start_time = time.time()
+
+fgeo = ROOT.TFile.Open(geoFile)
 from ShipGeoConfig import ConfigRegistry
 from rootpyPickler import Unpickler
 #load geo dictionary
@@ -25,7 +45,7 @@ snd_geo = upkl.load('ShipGeo')
 # -----Create geometry----------------------------------------------
 import shipLHC_conf as sndDet_conf
 import SndlhcGeo
-geo = SndlhcGeo.GeoInterface(mc_geoFile)
+geo = SndlhcGeo.GeoInterface(geoFile)
 lsOfGlobals = ROOT.gROOT.GetListOfGlobals()
 lsOfGlobals.Add(geo.modules['Scifi'])
 
@@ -42,28 +62,23 @@ zBins = [289, 299, 302, 312, 315, 325, 328, 338, 341, 351, 354, 364]
 from array import array
 zBins=array('f', zBins)
 
-#if options.runNumber>0: 
-#    f=ROOT.TFile.Open(options.path+'sndsw_raw_'+str(options.runNumber).zfill(6)+'.root')
-#    eventTree = f.rawConv
-#else:
-#    f=ROOT.TFile.Open(options.fname)
-#    eventTree = f.cbmsim
+#from os.path import exists
+#cbmsim = ROOT.TChain('cbmsim')
+#mc_file_path = xroot_prefix + '/eos/user/a/aiulian/sim_snd/numu_sim_activeemu_withcrisfiles_25_July_2022/'
+#n_files_to_read = 1
+#n_files_read = 0
+#for i in range (n_files_to_read):
+#     file_name = mc_file_path+str(i+1)+'/sndLHC.Genie-TGeant4_dig.root'
+#     #if not exists(file_name):
+#     #     continue
+#     this_read = cbmsim.Add(file_name)
+#     if this_read > 0:
+#          n_files_read += 1
+#eventTree = cbmsim
+#print('n files read = ', n_files_read)
 
-from os.path import exists
-
-cbmsim = ROOT.TChain('cbmsim')
-mc_file_path = xroot_prefix + '/eos/user/a/aiulian/sim_snd/numu_sim_activeemu_withcrisfiles_25_July_2022/'
-n_files_to_read = 1
-n_files_read = 0
-for i in range (n_files_to_read):
-     file_name = mc_file_path+str(i+1)+'/sndLHC.Genie-TGeant4_dig.root'
-     #if not exists(file_name):
-     #     continue
-     this_read = cbmsim.Add(file_name)
-     if this_read > 0:
-          n_files_read += 1
-eventTree = cbmsim
-print('n files read = ', n_files_read)
+f=ROOT.TFile.Open(simFile)
+eventTree = f.cbmsim
 
 def GetCharge(pdgcode, pdgdb):
      charge = 0
@@ -88,15 +103,17 @@ if single:
      histoFile = ROOT.TFile('/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/histoEmulsion_s.root', 'recreate')
 if block:
      histoFile = ROOT.TFile('/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/histoEmulsion_b.root', 'recreate')
-else:
-     histoFile = ROOT.TFile('/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/histoEmulsion.root', 'recreate')
-     fitFile = open('/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/emulsion_fits.txt', "w+")
-     statFile = open('/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/emulsion_stats.txt', "w+")
+elif options.ProcID is not None:
+     histoFileName = pathPlots+str(options.ClusterID)+'_histoEml_'+str(options.ProcID)+'.root'
+     histoFile = ROOT.TFile(histoFileName, 'recreate')
+     fitFileName = pathText+str(options.ClusterID)+'_fitEml_'+str(options.ProcID)+'.txt'
+     statFileName = pathText+str(options.ClusterID)+'_statEml_'+str(options.ProcID)+'.txt'
+     fitFile = open(fitFileName, "w+")
+     statFile = open(statFileName, "w+")
+     #fitFile.write('{0:<5}  {1:>10}  {2:>10}  {3:>10}  {4:>10}  {5:>10}  {6:>10}'.format('event','x_bar','x_rad','y_bar','y_rad','x_hits', 'y_hits')+'\n')
+     def addToFile(addPrint):
+          fitFile.write(addPrint+'\n')
 
-
-def addToFile(addPrint):
-    fitFile.write(addPrint+'\n')
-Nev = -1
 nBins = 50
 sizeBin = 50/nBins
 binRange = 3
@@ -120,13 +137,11 @@ A, B = ROOT.TVector3(), ROOT.TVector3()
 ccCount=0
 inCount = 0
 outCount = 0
-srX = srY = srD = 0
-if Nev < 0: Nev = eventTree.GetEntries()
-for event in eventTree:
-     Nevent = eventTree.GetEntries()-Nev
-     if Nev%100==0:
-          stop_time = time.time()-start_time
-          print('events to go: {}, time {}'.format(Nev, stop_time))
+Nev = eventTree.GetEntries()
+for i_event, event in enumerate(eventTree):
+     if Nev<0: break
+     if options.OffMode and Nev%100==0:
+          print('events to go:', Nev)
      Nev=Nev-1
      motherWall = -1
      cc = 0
@@ -161,7 +176,7 @@ for event in eventTree:
      if not cc: continue
      emulsion = 0
      if single:
-          print('event->', Nevent)
+          print('event->', i_event)
      h['eml_xy'].Reset()
      #h['eml_z'].Reset()
      z60 = M[2]
@@ -221,7 +236,7 @@ for event in eventTree:
      barY = h['eml_xy'].GetMean(2)
      radX = h['eml_xy'].GetStdDev(1)
      radY = h['eml_xy'].GetStdDev(2)
-     addToFile('{0:<5}  {1:>10}  {2:>10}  {3:>10}  {4:>10}  {5:>10}'.format(Nevent, round(barX, 2), round(radX, 2), round(barY, 2), round(radY, 2), h['eml_xy'].GetEntries()))
+     addToFile('{0:<5}  {1:>10}  {2:>10}  {3:>10}  {4:>10}  {5:>10}'.format(i_event, round(barX, 2), round(radX, 2), round(barY, 2), round(radY, 2), h['eml_xy'].GetEntries()))
      #errMeanX = h['eml_xy'].GetMeanError(1)
      #errMeanY = h['eml_xy'].GetMeanError(2)
 
@@ -330,43 +345,52 @@ if not single and not block:
      ut.bookCanvas(h,'res','residuals',1000, 2500, cx=1,cy=3)
      h['res'].SetCanvasSize(1000, 1500)
      h['res'].SetWindowSize(1050, 1200)
-     h['res'].cd(1)
-     fitResX = h['res_x'].Fit('gaus','SQ','',-20,20)
-     fitResY = h['res_y'].Fit('gaus','SQ','',-20,20)
-     resMeanX = fitResX.Parameter(1)
-     resVarX = fitResX.Parameter(2)
-     resMeanY = fitResY.Parameter(1)
-     resVarY = fitResY.Parameter(2)
-     print('resMeanX {}, resVarX {}, resMeanY {}, resVarY {}'.format(resMeanX, resVarX, resMeanY, resVarY))
-     statFile.write('resMeanX {}, resVarX {}, resMeanY {}, resVarY {}\n'.format(resMeanX, resVarX, resMeanY, resVarY))
-     eff0x = 0
-     eff0y = 0
-     eff1x = h['res_x'].GetEntries()
-     eff1y = h['res_y'].GetEntries()
-     for binX in range(h['res_x'].GetXaxis().GetNbins()):
-          if h['res_x'].GetBinCenter(binX) < resMeanX - 3 * resVarX:
-               eff0x += h['res_x'].GetBinContent(binX)
-          elif h['res_x'].GetBinCenter(binX) > resMeanX + 3 * resVarX:
-               eff0x += h['res_x'].GetBinContent(binX)
-     for binY in range(h['res_y'].GetXaxis().GetNbins()):
-          if h['res_y'].GetBinCenter(binY) < resMeanY - 3 * resVarY:
-               eff0y += h['res_y'].GetBinContent(binY)
-          elif h['res_y'].GetBinCenter(binY) > resMeanY + 3 * resVarY:
-               eff0y += h['res_y'].GetBinContent(binY)
-     effx = 1-eff0x/eff1x
-     effy = 1-eff0y/eff1y
-     print('efficiency x:', effx, eff0x, eff1x)
-     print('efficiency y:', effy, eff0y, eff1y)
-     statFile.write('efficiency x: {} {} {}\n'.format(effx, eff0x, eff1x))
-     statFile.write('efficiency y: {} {} {}\n'.format(effy, eff0y, eff1y))
-     h['res_x'].Draw()
-     h['res'].cd(2)
-     h['res_y'].Draw()
-     h['res'].cd(3)
-     h['res_d'].Draw()
+     #h['res'].cd(1)
+     #fitResX = h['res_x'].Fit('gaus','SQ','',-20,20)
+     #fitResY = h['res_y'].Fit('gaus','SQ','',-20,20)
+     #resMeanX = fitResX.Parameter(1)
+     #resVarX = fitResX.Parameter(2)
+     #resMeanY = fitResY.Parameter(1)
+     #resVarY = fitResY.Parameter(2)
+     #print('resMeanX {}, resVarX {}, resMeanY {}, resVarY {}'.format(resMeanX, resVarX, resMeanY, resVarY))
+     #statFile.write('resMeanX {}, resVarX {}, resMeanY {}, resVarY {}\n'.format(resMeanX, resVarX, resMeanY, resVarY))
+     #eff0x = 0
+     #eff0y = 0
+     #eff1x = h['res_x'].GetEntries()
+     #eff1y = h['res_y'].GetEntries()
+     #for binX in range(h['res_x'].GetXaxis().GetNbins()):
+     #     if h['res_x'].GetBinCenter(binX) < resMeanX - 3 * resVarX:
+     #          eff0x += h['res_x'].GetBinContent(binX)
+     #     elif h['res_x'].GetBinCenter(binX) > resMeanX + 3 * resVarX:
+     #          eff0x += h['res_x'].GetBinContent(binX)
+     #for binY in range(h['res_y'].GetXaxis().GetNbins()):
+     #     if h['res_y'].GetBinCenter(binY) < resMeanY - 3 * resVarY:
+     #          eff0y += h['res_y'].GetBinContent(binY)
+     #     elif h['res_y'].GetBinCenter(binY) > resMeanY + 3 * resVarY:
+     #          eff0y += h['res_y'].GetBinContent(binY)
+     #effx = 1-eff0x/eff1x
+     #effy = 1-eff0y/eff1y
+     #print('efficiency x:', effx, eff0x, eff1x)
+     #print('efficiency y:', effy, eff0y, eff1y)
+     #statFile.write('efficiency x: {} {} {}\n'.format(effx, eff0x, eff1x))
+     #statFile.write('efficiency y: {} {} {}\n'.format(effy, eff0y, eff1y))
+     #h['res_x'].Draw()
+     #h['res'].cd(2)
+     #h['res_y'].Draw()
+     #h['res'].cd(3)
+     #h['res_d'].Draw()
      #h['res'].Print(mc_file_path+'eml_res.png')
      histoFile.cd()
-     h['res'].Write()
+     h['res_x'].Write()
+     h['res_y'].Write()
+     h['res_d'].Write()
 
      fitFile.close()
      statFile.close()
+
+histoFile.Write()
+histoFile.Close()
+fitFile.close()
+statFile.close()
+print('Done')
+print('Elapsed time: '+str((time.time()-start_time)/60.)+' mins')
