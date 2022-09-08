@@ -12,6 +12,7 @@ parser.add_argument("-r", "--runNumber", dest="runNumber", help="run number", ty
 parser.add_argument("-p", "--path", dest="path", help="run number",required=False,default="")
 parser.add_argument("-f", "--inputFile", dest="fname", help="file name for MC", type=str,default=None,required=False)
 parser.add_argument("-g", "--geoFile", dest="geoFile", help="geofile", required=False)
+parser.add_argument("--pdg", dest="nuPdg", help="nuPdg", required=True, type=int)
 parser.add_argument("--offline", dest="OffMode", default=False, action="store_true")
 parser.add_argument("-clusID", dest="ClusterID", required=False, default=0)
 parser.add_argument("-procID", dest="ProcID", required=False, default=None, type=int)
@@ -21,7 +22,7 @@ if options.OffMode:
      xroot_prefix = 'root:://eosuser.cern.ch/'
 else:
      xroot_prefix = ''
-pathGeofile = xroot_prefix+'/eos/user/a/aiulian/sim_snd/numu_sim_activeemu_withcrisfiles_25_July_2022/1/'
+pathGeofile = xroot_prefix+'/afs/cern.ch/work/f/falicant/public/matching/'
 pathSim = xroot_prefix+'/eos/user/a/aiulian/sim_snd/numu_sim_activeemu_withcrisfiles_25_July_2022/'
 pathPlots = '/afs/cern.ch/work/f/falicant/public/matching/histo_match/'
 pathText = '/afs/cern.ch/work/f/falicant/public/matching/text_match/'
@@ -29,7 +30,7 @@ nameGeofile = 'geofile_full.Genie-TGeant4.root'
 nameSim = 'sndLHC.Genie-TGeant4_dig.root'
 geoFile = pathGeofile+nameGeofile
 if options.ProcID is not None:
-     simFile = pathSim+str(options.ProcID+1)+'/'+nameSim
+     simFile = pathSim+str(options.ProcID%10+1)+'/'+nameSim
 else:
      simFile = pathSim+str(1)+'/'+nameSim
 
@@ -60,6 +61,13 @@ scifiDet = ROOT.gROOT.GetListOfGlobals().FindObject('Scifi')
 zBins = [289, 299, 302, 312, 315, 325, 328, 338, 341, 351, 354, 364]
 from array import array
 zBins=array('f', zBins)
+
+if options.nuPdg > 0:
+	nu_pdg = options.nuPdg
+	lep_pdg = options.nuPdg - 1
+else:
+	nu_pdg = options.nuPdg
+	lep_pdg = options.nuPdg + 1
 
 #from os.path import exists
 #cbmsim = ROOT.TChain('cbmsim')
@@ -92,10 +100,10 @@ single = False
 if single:
      histoFile = ROOT.TFile('/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/histoSciFi_s.root', 'recreate')
 elif options.ProcID is not None:
-     histoFileName = pathPlots+str(options.ClusterID)+'_histoSciFi_'+str(options.ProcID)+'.root'
+     histoFileName = pathPlots+str(options.ClusterID)+'.'+str(nu_pdg)+'_histoSciFi_'+str(options.ProcID)+'.root'
      histoFile = ROOT.TFile(histoFileName, 'recreate')
-     fitFileName = pathText+str(options.ClusterID)+'_fitSciFi_'+str(options.ProcID)+'.txt'
-     statFileName = pathText+str(options.ClusterID)+'_statSciFi_'+str(options.ProcID)+'.txt'
+     fitFileName = pathText+str(options.ClusterID)+'.'+str(nu_pdg)+'_fitSciFi_'+str(options.ProcID)+'.txt'
+     statFileName = pathText+str(options.ClusterID)+'.'+str(nu_pdg)+'_statSciFi_'+str(options.ProcID)+'.txt'
      fitFile = open(fitFileName, "w+")
      statFile = open(statFileName, "w+")
      #fitFile.write('{0:<5}  {1:>10}  {2:>10}  {3:>10}  {4:>10}  {5:>10}  {6:>10}'.format('event','x_bar','x_rad','y_bar','y_rad','x_hits', 'y_hits')+'\n')
@@ -127,7 +135,7 @@ for i_event, event in enumerate(eventTree):
      cc = 0
      incoming_nu = event.MCTrack[0]
      outgoing_l = event.MCTrack[1]
-     if incoming_nu.GetPdgCode()==14 and outgoing_l.GetPdgCode()==13:
+     if incoming_nu.GetPdgCode()==nu_pdg and outgoing_l.GetPdgCode()==lep_pdg:
           cc = 1
           mX = incoming_nu.GetStartX()
           mY = incoming_nu.GetStartY()
