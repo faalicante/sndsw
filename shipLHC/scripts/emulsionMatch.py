@@ -3,9 +3,21 @@ import rootUtils as ut
 h = {}
 
 
-path = '/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/'
-scifiFile = path+'scifi_fits.txt'
-emulsionFile = path+'emulsion_fits.txt'
+from argparse import ArgumentParser
+parser = ArgumentParser()
+parser.add_argument("--offline", dest="OffMode", default=False, action="store_true")
+parser.add_argument("-clusID", dest="ClusterID", required=False, default=0)
+parser.add_argument("--pdg", dest="nuPdg", help="nuPdg", required=True, type=int)
+options = parser.parse_args()
+
+
+if options.OffMode:
+     xroot_prefix = 'root:://eosuser.cern.ch/'
+else:
+     xroot_prefix = ''
+path = xroot_prefix+'/afs/cern.ch/work/f/falicant/public/matching/text_match'
+scifiFile = path+'/'+str(options.ClusterID)+'.'+str(options.nuPdg)+'_fitSciFi.txt'
+emulsionFile = path+'/'+str(options.ClusterID)+'.'+str(options.nuPdg)+'_fitEml.txt'
 
 def allEvents():
     c = ROOT.TCanvas('residuals', 'residuals')
@@ -21,7 +33,6 @@ def allEvents():
         for lineEml in linesEml:
             lineEml = lineEml.replace('\n', '')
             lineEml = lineEml.split()
-            if lineEml[0] == 'event': continue
             emulsionEvent = int(lineEml[0])
             emulsionBarX = float(lineEml[1])
             emulsionBarY = float(lineEml[3])
@@ -30,7 +41,6 @@ def allEvents():
                 for lineScifi in linesScifi:
                     lineScifi = lineScifi.replace('\n', '')
                     lineScifi = lineScifi.split()
-                    if lineScifi[0] == 'event': continue
                     scifiEvent = int(lineScifi[0])
                     if scifiEvent == emulsionEvent:
                         scifiBarX = float(lineScifi[1])
@@ -87,7 +97,6 @@ def blockEvents(Nint = 200):
         for lineEml in linesEml:
             lineEml = lineEml.replace('\n', '')
             lineEml = lineEml.split()
-            if lineEml[0] == 'event': continue
             N1+=1
             emulsionEvent = int(lineEml[0])
             emulsionBarX = float(lineEml[1])

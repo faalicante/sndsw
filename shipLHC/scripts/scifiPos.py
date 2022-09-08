@@ -223,7 +223,7 @@ for i_event, event in enumerate(eventTree):
           medianY = array('d',[0])
           #print('y fit not converged')
           h['digi_y'].GetQuantiles(1, medianY, quantile)
-          fitMeanY = medianY[0]
+          fitMeanY = medianY[0] 
      dist = ROOT.TMath.Sqrt((fitMeanX-nuX)**2+(fitMeanY-nuY)**2)
      h['digi_x'].Draw()
      mcX.Draw('same')
