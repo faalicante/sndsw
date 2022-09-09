@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 parser = ArgumentParser()
 parser.add_argument("--offline", dest="OffMode", default=False, action="store_true")
 parser.add_argument("-clusID", dest="ClusterID", required=False, default=0)
-parser.add_argument("--pdg", dest="nuPdg", help="nuPdg", required=True, type=int)
+parser.add_argument("--pdg", dest="nuPdg", help="nuPdg", required=False, type=int)
 options = parser.parse_args()
 
 
@@ -15,9 +15,11 @@ if options.OffMode:
      xroot_prefix = 'root:://eosuser.cern.ch/'
 else:
      xroot_prefix = ''
-path = xroot_prefix+'/afs/cern.ch/work/f/falicant/public/matching/text_match'
-scifiFile = path+'/'+str(options.ClusterID)+'.'+str(options.nuPdg)+'_fitSciFi.txt'
-emulsionFile = path+'/'+str(options.ClusterID)+'.'+str(options.nuPdg)+'_fitEml.txt'
+path = xroot_prefix+'/afs/cern.ch/work/f/falicant/public/matching'
+#scifiFile = path+'/'+str(options.ClusterID)+'.'+str(options.nuPdg)+'_fitSciFi.txt'
+#emulsionFile = path+'/'+str(options.ClusterID)+'.'+str(options.nuPdg)+'_fitEml.txt'
+scifiFile = path+'/totSciFi.txt'
+emulsionFile = path+'/totEml.txt'
 
 def allEvents():
     c = ROOT.TCanvas('residuals', 'residuals')
@@ -89,8 +91,20 @@ def blockEvents(Nint = 200):
     #distF = ROOT.TH1D('distF', 'false event distance', 10, 0, 1)
     tCount = 0
     fCount = 0
+    tnuCount = 0
+    tnubarCount = 0
+    fnuCount = 0
+    fnubarCount = 0
+    tnueCount = 0
+    tnuebarCount = 0
+    fnueCount = 0
+    fnuebarCount = 0
     block = 0
     average = 0
+    average1 = 0
+    average2 = 0
+    average3 = 0
+    average4 = 0
     with open(emulsionFile, 'r') as fe:
         N1 = 0
         linesEml = fe.readlines()
@@ -124,9 +138,25 @@ def blockEvents(Nint = 200):
                 if scifiEvent == emulsionEvent:
                     #distT.Fill(minDist)
                     tCount+=1
+                    if lineEml[6] == 'mu':
+                         tnuCount+=1
+                    elif lineEml[6] == 'mubar':
+                         tnubarCount+=1
+                    if lineEml[6] == 'e':
+                         tnueCount+=1
+                    elif lineEml[6] == 'ebar':
+                         tnuebarCount+=1
                 else:
                     #distF.Fill(minDist)
                     fCount+=1
+                    if lineEml[6] == 'mu':
+                         fnuCount+=1
+                    elif lineEml[6] == 'mubar':
+                         fnubarCount+=1
+                    if lineEml[6] == 'e':
+                         fnueCount+=1
+                    elif lineEml[6] == 'ebar':
+                         fnuebarCount+=1
             if N1 == Nint: 
                 N1 = 0
                 block+=1
@@ -137,8 +167,33 @@ def blockEvents(Nint = 200):
                 average += tCount/(tCount+fCount)
                 tCount = 0
                 fCount = 0
+                if (tnuCount+fnuCount) > 0: 
+                      average1 += tnuCount/(tnuCount+fnuCount)
+                tnuCount = 0
+                fnuCount = 0
+                if (tnubarCount+fnubarCount) > 0:
+                      average2 += tnubarCount/(tnubarCount+fnubarCount)
+                tnubarCount = 0
+                fnubarCount = 0
+                if (tnueCount+fnueCount) > 0: 
+                      average3 += tnueCount/(tnueCount+fnueCount)
+                tnueCount = 0
+                fnueCount = 0
+                if (tnuebarCount+fnuebarCount) > 0:
+                      average4 += tnuebarCount/(tnuebarCount+fnuebarCount)
+                tnuebarCount = 0
+                fnuebarCount = 0
     average = average/block
-    print('average efficiency', average)      
+    print('average efficiency', average)   
+
+    average1 = average1/block
+    print('average efficiency numu', average1)  
+    average2 = average2/block
+    print('average efficiency numubar', average2)     
+    average3 = average3/block
+    print('average efficiency nue', average3)  
+    average4 = average4/block
+    print('average efficiency nuebar', average4)
 
     
     #distT.SetMaximum(100)

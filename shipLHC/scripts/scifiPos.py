@@ -14,8 +14,8 @@ parser.add_argument("-f", "--inputFile", dest="fname", help="file name for MC", 
 parser.add_argument("-g", "--geoFile", dest="geoFile", help="geofile", required=False)
 parser.add_argument("--pdg", dest="nuPdg", help="nuPdg", required=True, type=int)
 parser.add_argument("--offline", dest="OffMode", default=False, action="store_true")
-parser.add_argument("-clusID", dest="ClusterID", required=False, default=0)
-parser.add_argument("-procID", dest="ProcID", required=False, default=None, type=int)
+parser.add_argument("--clusID", dest="ClusterID", required=False, default=0)
+parser.add_argument("--procID", dest="ProcID", required=False, default=None, type=int)
 options = parser.parse_args()
 
 if options.OffMode:
