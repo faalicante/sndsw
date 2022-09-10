@@ -4,7 +4,7 @@ import shipunit as u
 import ctypes
 import time
 
-ROOT.gROOT.SetBatch(True)
+#ROOT.gROOT.SetBatch(True)
 h={}
 from argparse import ArgumentParser
 parser = ArgumentParser()
@@ -106,12 +106,12 @@ wallRangeX = [-46, -6]
 wallRangeY = [14, 54]
 
 single = False
-block = False
+block = True
 
 if single:
-     histoFile = ROOT.TFile('/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/histoEmulsion_s.root', 'recreate')
+     histoFile = ROOT.TFile(pathPlots+'histoEmulsion_s.root', 'recreate')
 if block:
-     histoFile = ROOT.TFile('/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/histoEmulsion_b.root', 'recreate')
+     histoFile = ROOT.TFile(pathPlots+'histoEmulsion_b.root', 'recreate')
 elif options.ProcID is not None:
      histoFileName = pathPlots+str(options.ClusterID)+'.'+str(nu_pdg)+'_histoEml_'+str(options.ProcID)+'.root'
      histoFile = ROOT.TFile(histoFileName, 'recreate')
@@ -126,9 +126,10 @@ elif options.ProcID is not None:
 nBins = 50
 sizeBin = 50/nBins
 binRange = 3
+
 ut.bookCanvas(h,'eml_map','emulsion map',800, 600, cx=1,cy=1)
 ut.bookHist(h, 'eml_xy', '2d emulsion map;x [cm]; y [cm]', 1000, targetRangeX[0], targetRangeX[1], 1000, targetRangeY[0], targetRangeY[1])
-#ut.bookHist(h, 'eml_z', 'z map', 100, targetRangeZ[0], targetRangeZ[1])
+ut.bookHist(h, 'eml_z', 'z map', 100, targetRangeZ[0], targetRangeZ[1])
 ut.bookHist(h,'res_x','x residuals; x [cm]',100,-10,10)
 ut.bookHist(h,'res_y','y residuals; y [cm]',100,-10,10)
 ut.bookHist(h,'res_d','distance residuals; [cm]',100,0,10)
@@ -149,14 +150,14 @@ outCount = 0
 Nev = eventTree.GetEntries()
 for i_event, event in enumerate(eventTree):
      if Nev<0: break
-     if options.OffMode and Nev%100==0:
+     if Nev%10==0:
           print('events to go:', Nev)
      Nev=Nev-1
      motherWall = -1
      cc = 0
      incoming_nu = event.MCTrack[0]
      outgoing_l = event.MCTrack[1]
-     if incoming_nu.GetPdgCode()==nu_pdg and outgoing_l.GetPdgCode()==lep_pdg:
+     if abs(incoming_nu.GetPdgCode())==nu_pdg and abs(outgoing_l.GetPdgCode())==lep_pdg:
           cc = 1
           mX = incoming_nu.GetStartX()
           mY = incoming_nu.GetStartY()
@@ -207,14 +208,14 @@ for i_event, event in enumerate(eventTree):
                     emulsion = 1
                     inCount+=1
                     h['eml_xy'].Fill(emlX, emlY)
-                    #blockIndex = int(ccCount/200)
-                    #h['eml_map_'+str(blockIndex)+str(ccCount)].Fill(emlX, emlY)
+                    blockIndex = int(ccCount/200)
+                    h['eml_map_'+str(blockIndex)+str(ccCount)].Fill(emlX, emlY)
                else:
                     outCount+=1
                     #print('Error: track out of wall', emlX, emlY)
      if not emulsion: continue     
      ccCount+=1
-     #if (block == True) and if (ccCount > 199):break
+     if (ccCount > 199):break
      mc = ROOT.TGraph()
      mc.SetPoint(1, nuX, nuY)
      mc.SetMarkerStyle(29)
@@ -245,14 +246,15 @@ for i_event, event in enumerate(eventTree):
      barY = h['eml_xy'].GetMean(2)
      radX = h['eml_xy'].GetStdDev(1)
      radY = h['eml_xy'].GetStdDev(2)
-     addToFile('{0:<5}  {1:>10}  {2:>10}  {3:>10}  {4:>10}  {5:>10}'.format(i_event, round(barX, 2), round(radX, 2), round(barY, 2), round(radY, 2), h['eml_xy'].GetEntries()))
+     if not block:
+          addToFile('{0:<5}  {1:>10}  {2:>10}  {3:>10}  {4:>10}  {5:>10}'.format(i_event, round(barX, 2), round(radX, 2), round(barY, 2), round(radY, 2), h['eml_xy'].GetEntries()))
      #errMeanX = h['eml_xy'].GetMeanError(1)
      #errMeanY = h['eml_xy'].GetMeanError(2)
 
-     dist = ROOT.TMath.Sqrt((barX-nuX)**2+(barY-nuY)**2)
-     h['res_x'].Fill(barX-nuX)
-     h['res_y'].Fill(barY-nuY)
-     h['res_d'].Fill(dist)
+          dist = ROOT.TMath.Sqrt((barX-nuX)**2+(barY-nuY)**2)
+          h['res_x'].Fill(barX-nuX)
+          h['res_y'].Fill(barY-nuY)
+          h['res_d'].Fill(dist)
      if single:
           print('nu vertex ({:.6f}, {:.6f})'.format(nuX, nuY))
           print('track barycenter/radius x/y', barX, radX, barY, radY)
@@ -260,11 +262,11 @@ for i_event, event in enumerate(eventTree):
           rc = input("hit return for next event or q for quit: ")
           if rc=='q': break
 
-'''
+
 if block:
      scifiCount = 0
-     path = '/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/
-     scifiFile = path+'scifi_fits.txt'
+     path = pathText
+     scifiFile = path+'eSciFi.txt'
      with open (scifiFile, 'r') as fs:
           linesScifi = fs.readlines()
           for lineScifi in linesScifi:
@@ -340,7 +342,7 @@ if block:
      #h['map'].Print('/home/fabio/cernbox/softphys/2dmap.png')
      histoFile.cd()
      h['map'].Write()
-'''
+
 
 print("Total number of event: {}".format(eventTree.GetEntries()))
 print("Selected number of event: {}".format(ccCount))

@@ -5,7 +5,7 @@ import numpy as np
 import time
 h={}
 
-ROOT.gROOT.SetBatch(True)
+#ROOT.gROOT.SetBatch(True)
 from argparse import ArgumentParser
 parser = ArgumentParser()
 parser.add_argument("-r", "--runNumber", dest="runNumber", help="run number", type=int,required=False)
@@ -95,10 +95,10 @@ targetRangeZ = [270, 370]
 wallRangeX = [-46, -6]
 wallRangeY = [14, 54]
 
-single = False
+single = True
 
 if single:
-     histoFile = ROOT.TFile('/home/fabio/Simulations_sndlhc/numu_sim_activeemu_withcrisfiles_25_July_2022/histoSciFi_s.root', 'recreate')
+     histoFile = ROOT.TFile(pathPlots+'histoSciFi_s.root', 'recreate')
 elif options.ProcID is not None:
      histoFileName = pathPlots+str(options.ClusterID)+'.'+str(nu_pdg)+'_histoSciFi_'+str(options.ProcID)+'.root'
      histoFile = ROOT.TFile(histoFileName, 'recreate')
@@ -255,10 +255,10 @@ for i_event, event in enumerate(eventTree):
      #print('event {} wall {} res ({:.6f}, {:.6f} -> {:.6f})'.format(i_event, motherWall, fitMeanX-nuX, fitMeanY-nuY, dist))
      if not single:
           addToFile('{0:<5}  {1:>10}  {2:>10}  {3:>10}  {4:>10}  {5:>10}  {6:>10}'.format(i_event, round(fitMeanX, 2), round(fitVarX, 2), round(fitMeanY, 2), round(fitVarY, 2),h['digi_x'].GetEntries(),h['digi_y'].GetEntries()))
-print("Total number of event: {}".format(eventTree.GetEntries()))
-print("Selected number of event: {}".format(ccCount))
-statFile.write("Total number of event: {}\n".format(eventTree.GetEntries()))
-statFile.write("Selected number of event: {}\n".format(ccCount))
+          print("Total number of event: {}".format(eventTree.GetEntries()))
+          print("Selected number of event: {}".format(ccCount))
+          statFile.write("Total number of event: {}\n".format(eventTree.GetEntries()))
+          statFile.write("Selected number of event: {}\n".format(ccCount))
 
 if not single:
      ut.bookCanvas(h,'res','residuals',1000, 2500, cx=1,cy=3)
