@@ -16,6 +16,7 @@ parser.add_argument("--pdg", dest="nuPdg", help="nuPdg", required=True, type=int
 parser.add_argument("--offline", dest="OffMode", default=False, action="store_true")
 parser.add_argument("--clusID", dest="ClusterID", required=False, default=0)
 parser.add_argument("--procID", dest="ProcID", required=False, default=None, type=int)
+parser.add_argument("--binFit", dest="binFit", required=False, default=3, type=int)
 options = parser.parse_args()
 
 if options.OffMode:
@@ -95,15 +96,15 @@ targetRangeZ = [270, 370]
 wallRangeX = [-46, -6]
 wallRangeY = [14, 54]
 
-single = True
+single = False
 
 if single:
      histoFile = ROOT.TFile(pathPlots+'histoSciFi_s.root', 'recreate')
 elif options.ProcID is not None:
-     histoFileName = pathPlots+str(options.ClusterID)+'.'+str(nu_pdg)+'_histoSciFi_'+str(options.ProcID)+'.root'
+     histoFileName = pathPlots+str(options.ClusterID)+'.'+str(nu_pdg)+'_histoSciFi'+str(options.binFit)+'_'+str(options.ProcID)+'.root'
      histoFile = ROOT.TFile(histoFileName, 'recreate')
-     fitFileName = pathText+str(options.ClusterID)+'.'+str(nu_pdg)+'_fitSciFi_'+str(options.ProcID)+'.txt'
-     statFileName = pathText+str(options.ClusterID)+'.'+str(nu_pdg)+'_statSciFi_'+str(options.ProcID)+'.txt'
+     fitFileName = pathText+str(options.ClusterID)+'.'+str(nu_pdg)+'_fitSciFi'+str(options.binFit)+'_'+str(options.ProcID)+'.txt'
+     statFileName = pathText+str(options.ClusterID)+'.'+str(nu_pdg)+'_statSciFi'+str(options.binFit)+'_'+str(options.ProcID)+'.txt'
      fitFile = open(fitFileName, "w+")
      statFile = open(statFileName, "w+")
      #fitFile.write('{0:<5}  {1:>10}  {2:>10}  {3:>10}  {4:>10}  {5:>10}  {6:>10}'.format('event','x_bar','x_rad','y_bar','y_rad','x_hits', 'y_hits')+'\n')
@@ -111,7 +112,7 @@ elif options.ProcID is not None:
           fitFile.write(addPrint+'\n')
 nBin = 50
 sizeBin = 50/nBin
-binRange = 3
+binRange = options.binFit
 ut.bookCanvas(h,'digi_dis','digi_hiys distribution',1200, 500, cx=2,cy=1)
 ut.bookHist(h,'digi_x','x position ; x [cm]',nBin,targetRangeX[0],targetRangeX[1])
 ut.bookHist(h,'digi_y','y position ; y [cm]',nBin,targetRangeY[0],targetRangeY[1])
@@ -130,6 +131,7 @@ for i_event, event in enumerate(eventTree):
      if Nev<0: break
      if options.OffMode and Nev%100==0:
           print('events to go:', Nev)
+     if (options.ProcID==2) and i_event==727: continue
      Nev=Nev-1
      motherWall = -1
      cc = 0
